@@ -19,10 +19,10 @@ export function UserProfileCard({ activeTheme }) {
   const [savedNote, setSavedNote] = useState(null);
 
   const SEASONS = [
-    { id: 'spring', title: 'Весенний ветер', age: '18–27', focus: 'Поиск баланса, режим сна' },
-    { id: 'summer', title: 'Полуденное солнце', age: '28–40', focus: 'Созидание, защита от выгорания' },
-    { id: 'apples', title: 'Спелые яблоки', age: '41–55', focus: 'Бережность к щитовидке, тёплая пища, сон' },
-    { id: 'forest', title: 'Глубокий лес', age: '56+', focus: 'Мудрость, суставы, радость рассветам' },
+    { id: 'spring', title: 'Весенний ветер', age: '18–27 лет', focus: 'Поиск баланса, режим сна' },
+    { id: 'summer', title: 'Полуденное солнце', age: '28–40 лет', focus: 'Созидание, защита от выгорания' },
+    { id: 'apples', title: 'Спелые яблоки', age: '41–55 лет', focus: 'Бережность к телу, тёплая пища, сон' },
+    { id: 'forest', title: 'Глубокий лес', age: '56+ лет', focus: 'Мудрость, суставы, радость рассветам' },
   ];
 
   const handleSave = () => {
@@ -94,14 +94,23 @@ export function UserProfileCard({ activeTheme }) {
         />
       </div>
 
-      {/* 2. Сезон жизни */}
+      {/* 2. Сезон жизни с напоминанием о возрасте */}
       <div>
-        <span
-          className="block text-[11px] font-semibold tracking-wider uppercase opacity-70 mb-2"
-          style={{ color: activeTheme.textSecondary }}
-        >
-          Твой сезон жизни
-        </span>
+        <div className="flex items-center justify-between mb-1">
+          <span
+            className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
+            style={{ color: activeTheme.textSecondary }}
+          >
+            Твой сезон жизни
+          </span>
+          <span className="text-xs font-serif font-medium" style={{ color: activeTheme.accent }}>
+            {SEASONS.find((s) => s.id === season)?.title} ({SEASONS.find((s) => s.id === season)?.age})
+          </span>
+        </div>
+        <p className="text-[10px] opacity-70 mb-2 italic" style={{ color: activeTheme.textSecondary }}>
+          Возрастной диапазон помогает подобрать бережный темп и комфортные ритуалы:
+        </p>
+
         <div className="grid grid-cols-2 gap-2">
           {SEASONS.map((s) => {
             const isPicked = season === s.id;
@@ -109,7 +118,7 @@ export function UserProfileCard({ activeTheme }) {
               <div
                 key={s.id}
                 onClick={() => setSeason(s.id)}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                className={`p-3 rounded-2xl border cursor-pointer transition-all ${
                   isPicked ? 'shadow-xs font-medium' : 'opacity-70 hover:opacity-100'
                 }`}
                 style={{
@@ -118,8 +127,17 @@ export function UserProfileCard({ activeTheme }) {
                   color: activeTheme.textPrimary,
                 }}
               >
-                <div className="text-xs font-serif">{s.title}</div>
-                <div className="text-[10px] opacity-60 mt-0.5">{s.focus}</div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-serif font-medium">{s.title}</span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold ${
+                      isPicked ? 'bg-amber-500/15 text-amber-900' : 'bg-black/5 text-gray-500'
+                    }`}
+                  >
+                    {s.age}
+                  </span>
+                </div>
+                <div className="text-[10px] opacity-70 leading-tight">{s.focus}</div>
               </div>
             );
           })}

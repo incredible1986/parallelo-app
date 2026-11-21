@@ -5,16 +5,17 @@ import { UserProfileCard } from './UserProfileCard';
 import { VisualStats } from './VisualStats';
 
 export function SundayReflection({ activeTheme }) {
-  const [selectedSeason, setSelectedSeason] = useState('apples');
+  const savedProfile = StorageService.get('parallelo_user_profile', {});
+  const [selectedSeason, setSelectedSeason] = useState(savedProfile.season || 'apples');
 
   const todayColor = StorageService.get('parallelo_today_color', null);
   const todayTag = StorageService.get('parallelo_today_tag', null);
 
   const SEASONS = [
-    { id: 'spring', title: 'Весенний ветер', age: '18–27', desc: 'Поиск своего пути, пробы и первые шторма' },
-    { id: 'summer', title: 'Полуденное солнце', age: '28–40', desc: 'Созидание, плотность дел, поиск опоры' },
-    { id: 'apples', title: 'Спелые яблоки', age: '41–55', desc: 'Переосмысление, бережность к телу, любовь к тишине' },
-    { id: 'forest', title: 'Глубокий лес', age: '56+', desc: 'Мудрость, замедление, радость каждому рассвету' },
+    { id: 'spring', title: 'Весенний ветер', age: '18–27 лет', desc: 'Поиск своего пути, пробы и первые шторма' },
+    { id: 'summer', title: 'Полуденное солнце', age: '28–40 лет', desc: 'Созидание, плотность дел, поиск опоры' },
+    { id: 'apples', title: 'Спелые яблоки', age: '41–55 лет', desc: 'Переосмысление, бережность к телу, любовь к тишине' },
+    { id: 'forest', title: 'Глубокий лес', age: '56+ лет', desc: 'Мудрость, замедление, радость каждому рассвету' },
   ];
 
   const GARDEN_PLANTS = [
@@ -105,13 +106,13 @@ export function SundayReflection({ activeTheme }) {
           >
             Твой сезон жизни
           </span>
-          <span className="text-xs font-serif italic" style={{ color: activeTheme.accent }}>
-            {SEASONS.find((s) => s.id === selectedSeason)?.title}
+          <span className="text-xs font-serif font-medium" style={{ color: activeTheme.accent }}>
+            {SEASONS.find((s) => s.id === selectedSeason)?.title} ({SEASONS.find((s) => s.id === selectedSeason)?.age})
           </span>
         </div>
 
         <p className="text-xs opacity-75 mb-3" style={{ color: activeTheme.textSecondary }}>
-          Приложение говорит с тобой на языке твоего жизненного этапа:
+          Возрастной ориентир помогает приложению подбирать бережный тон и ритуалы:
         </p>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -120,8 +121,13 @@ export function SundayReflection({ activeTheme }) {
             return (
               <button
                 key={s.id}
-                onClick={() => setSelectedSeason(s.id)}
-                className={`p-2.5 rounded-2xl text-left border transition-all ${
+                onClick={() => {
+                  setSelectedSeason(s.id);
+                  const p = StorageService.get('parallelo_user_profile', {});
+                  p.season = s.id;
+                  StorageService.set('parallelo_user_profile', p);
+                }}
+                className={`p-3 rounded-2xl text-left border transition-all ${
                   isPicked ? 'shadow-xs font-medium' : 'opacity-70 hover:opacity-100'
                 }`}
                 style={{
@@ -130,8 +136,17 @@ export function SundayReflection({ activeTheme }) {
                   color: activeTheme.textPrimary,
                 }}
               >
-                <div className="text-xs font-serif">{s.title}</div>
-                <div className="text-[10px] opacity-60 mt-0.5">{s.desc}</div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-serif font-medium">{s.title}</span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold ${
+                      isPicked ? 'bg-amber-500/15 text-amber-900' : 'bg-black/5 text-gray-500'
+                    }`}
+                  >
+                    {s.age}
+                  </span>
+                </div>
+                <div className="text-[10px] opacity-70 leading-tight">{s.desc}</div>
               </button>
             );
           })}
