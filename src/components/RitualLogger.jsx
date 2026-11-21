@@ -5,8 +5,9 @@ import { ShoppingPauseModal } from './ShoppingPauseModal';
 import { StorageService } from '../services/storage';
 
 export function RitualLogger({ activeTheme, onLogRitual }) {
+  // Чистый старт: никаких предвыбранных ритуалов-заглушек
   const [loggedRituals, setLoggedRituals] = useState(() => 
-    StorageService.get('parallelo_logged_rituals', ['banya', 'warm_plate'])
+    StorageService.get('parallelo_logged_rituals', [])
   );
   const [feedback, setFeedback] = useState(null);
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);

@@ -8,6 +8,13 @@ import { RitualLogger } from './components/RitualLogger';
 import { SundayReflection } from './components/SundayReflection';
 
 export default function App() {
+  // Автоматический сброс всех демо-заглушек для чистого старта тестирования с 21.11
+  const CLEAN_KEY = 'parallelo_clean_start_21_11_prod';
+  if (!StorageService.get(CLEAN_KEY, false)) {
+    localStorage.clear();
+    StorageService.set(CLEAN_KEY, true);
+  }
+
   const [activeTheme, setActiveTheme] = useState(() => {
     const savedId = StorageService.get('parallelo_theme_id', 'azure_spring');
     return PALETTES[savedId] || PALETTES.azure_spring;

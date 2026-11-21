@@ -1,60 +1,101 @@
 import React, { useState } from 'react';
 import { MOOD_COLORS } from '../data/brandingTokens';
+import { StorageService } from '../services/storage';
 
 /**
- * Наглядная статистика Parallelo (Без вины, с фокусом на визуальную красоту)
- * 1. 30-дневный цветовой ковёр месяца
- * 2. График глубокого сна и связи с баней
- * 3. Распределение якорей и ритуалов
- * 4. Индекс истинного присутствия
+ * Наглядная статистика Parallelo (Без заглушек, реальные данные с 21.11)
+ * 1. Сенсорная мозаика ноября (старт сегодня, 21.11)
+ * 2. График сна и банного тепла (реальные отметки)
+ * 3. Распределение якорей (реальный счетчик)
  */
 export function VisualStats({ activeTheme }) {
   const [period, setPeriod] = useState('month'); // 'week' | 'month'
   const [hoveredDay, setHoveredDay] = useState(null);
 
-  // 30 дней месяца с цветами и ритуалами
-  const monthData = [
-    { day: 1, color: '#F59E0B', mood: 'Янтарь', ritual: 'Тёплая тарелка', sleep: 7.2, deep: 1.2 },
-    { day: 2, color: '#1E3A5F', mood: 'Лазурь', ritual: 'Прогулка', sleep: 7.0, deep: 1.1 },
-    { day: 3, color: '#4D7C6F', mood: 'Шалфей', ritual: 'Чтение', sleep: 6.8, deep: 1.0 },
-    { day: 4, color: '#8B5CF6', mood: 'Лаванда', ritual: 'Чай', sleep: 7.5, deep: 1.3 },
-    { day: 5, color: '#78716C', mood: 'Камень', ritual: 'Одуванчик', sleep: 6.0, deep: 0.8 },
-    { day: 6, color: '#F59E0B', mood: 'Янтарь', ritual: 'Баня и пар', sleep: 8.2, deep: 2.1, isBanya: true },
-    { day: 7, color: '#F59E0B', mood: 'Янтарь', ritual: 'Прогулка', sleep: 8.0, deep: 1.9 },
-    { day: 8, color: '#1E3A5F', mood: 'Лазурь', ritual: 'Тёплая тарелка', sleep: 7.1, deep: 1.2 },
-    { day: 9, color: '#4D7C6F', mood: 'Шалфей', ritual: 'Чтение', sleep: 7.3, deep: 1.3 },
-    { day: 10, color: '#F59E0B', mood: 'Янтарь', ritual: 'Прогулка', sleep: 7.4, deep: 1.4 },
-    { day: 11, color: '#8B5CF6', mood: 'Лаванда', ritual: 'Чай', sleep: 7.0, deep: 1.1 },
-    { day: 12, color: '#78716C', mood: 'Камень', ritual: 'Сброс кокона', sleep: 6.5, deep: 0.9 },
-    { day: 13, color: '#F59E0B', mood: 'Янтарь', ritual: 'Баня и пар', sleep: 8.4, deep: 2.0, isBanya: true },
-    { day: 14, color: '#F59E0B', mood: 'Янтарь', ritual: 'Тёплая тарелка', sleep: 8.1, deep: 1.8 },
-    { day: 15, color: '#1E3A5F', mood: 'Лазурь', ritual: 'Прогулка', sleep: 7.2, deep: 1.2 },
-    { day: 16, color: '#4D7C6F', mood: 'Шалфей', ritual: 'Чтение', sleep: 7.5, deep: 1.3 },
-    { day: 17, color: '#F59E0B', mood: 'Янтарь', ritual: 'Тёплая тарелка', sleep: 7.6, deep: 1.4 },
-    { day: 18, color: '#8B5CF6', mood: 'Лаванда', ritual: 'Чай', sleep: 7.2, deep: 1.2 },
-    { day: 19, color: '#78716C', mood: 'Камень', ritual: 'Одуванчик', sleep: 6.2, deep: 0.8 },
-    { day: 20, color: '#F59E0B', mood: 'Янтарь', ritual: 'Баня и пар', sleep: 8.5, deep: 2.2, isBanya: true },
-    { day: 21, color: '#F59E0B', mood: 'Янтарь', ritual: 'Баня и пар', sleep: 8.2, deep: 1.9, isBanya: true },
-    { day: 22, color: '#1E3A5F', mood: 'Лазурь', ritual: 'Прогулка', sleep: 7.5, deep: 1.3 },
-    { day: 23, color: '#4D7C6F', mood: 'Шалфей', ritual: 'Чтение', sleep: 7.1, deep: 1.2 },
-    { day: 24, color: '#F59E0B', mood: 'Янтарь', ritual: 'Тёплая тарелка', sleep: 7.8, deep: 1.5 },
-    { day: 25, color: '#8B5CF6', mood: 'Лаванда', ritual: 'Чай', sleep: 7.3, deep: 1.3 },
-    { day: 26, color: '#F59E0B', mood: 'Янтарь', ritual: 'Прогулка', sleep: 7.4, deep: 1.4 },
-    { day: 27, color: '#78716C', mood: 'Камень', ritual: 'Сброс кокона', sleep: 6.7, deep: 0.9 },
-    { day: 28, color: '#F59E0B', mood: 'Янтарь', ritual: 'Баня и пар', sleep: 8.6, deep: 2.1, isBanya: true },
-    { day: 29, color: '#4D7C6F', mood: 'Шалфей', ritual: 'Чтение', sleep: 7.7, deep: 1.4 },
-    { day: 30, color: '#F59E0B', mood: 'Янтарь', ritual: 'Тёплая тарелка', sleep: 7.9, deep: 1.6 },
+  // Считываем реальные данные пользователя
+  const todayColor = StorageService.get('parallelo_today_color', null);
+  const todayTag = StorageService.get('parallelo_today_tag', null);
+  const todayNote = StorageService.get('parallelo_today_note', '');
+  const loggedRituals = StorageService.get('parallelo_logged_rituals', []);
+  const shoppingPauses = StorageService.get('parallelo_shopping_pauses', []);
+  const history = StorageService.get('parallelo_history', []);
+
+  const hasTodayEntry = !!todayColor;
+  const isBanyaToday = loggedRituals.includes('banya');
+
+  // Формируем сетку 30 дней ноября с началом отсчета 21.11
+  const monthDays = Array.from({ length: 30 }, (_, i) => {
+    const day = i + 1;
+    if (day < 21) {
+      return {
+        day,
+        status: 'before_start',
+        color: null,
+        desc: 'До начала наблюдений (старт 21 ноября)',
+      };
+    }
+    if (day === 21) {
+      return {
+        day,
+        status: hasTodayEntry ? 'recorded' : 'today_waiting',
+        color: hasTodayEntry ? todayColor.hex : null,
+        mood: hasTodayEntry ? todayColor.name : 'Ожидает чекина',
+        ritual: loggedRituals.length > 0 ? `${loggedRituals.length} ритуала(ов)` : 'Пока без ритуалов',
+        note: todayNote || todayTag || 'Первый день пути',
+        isToday: true,
+        isBanya: isBanyaToday,
+      };
+    }
+    return {
+      day,
+      status: 'upcoming',
+      color: null,
+      desc: 'Впереди. Наполнится твоим теплом шаг за шагом.',
+    };
+  });
+
+  // Рейтинг реальных якорей
+  const anchorItems = [
+    {
+      id: 'presence',
+      title: 'Момент присутствия («Я здесь»)',
+      count: hasTodayEntry ? 1 : 0,
+      color: activeTheme.primary,
+    },
+    {
+      id: 'warm_plate',
+      title: 'Тёплая тарелка (Забота о еде)',
+      count: loggedRituals.includes('warm_plate') ? 1 : 0,
+      color: '#D97706',
+    },
+    {
+      id: 'banya',
+      title: 'Баня и пар',
+      count: loggedRituals.includes('banya') ? 1 : 0,
+      color: '#C2410C',
+    },
+    {
+      id: 'tea_reading',
+      title: 'Чтение и чай',
+      count: loggedRituals.includes('tea_reading') ? 1 : 0,
+      color: '#8B5CF6',
+    },
+    {
+      id: 'silent_walk',
+      title: 'Прогулка в тишине',
+      count: loggedRituals.includes('silent_walk') ? 1 : 0,
+      color: '#4D7C6F',
+    },
+    {
+      id: 'mindful_shopping',
+      title: 'Осознанная покупка (Пауза 24ч)',
+      count: shoppingPauses.length,
+      color: '#10B981',
+    },
   ];
 
-  const weekSleepData = [
-    { day: 'Пн', deep: 1.2, total: 7.1, banya: false },
-    { day: 'Вт', deep: 1.1, total: 6.9, banya: false },
-    { day: 'Ср', deep: 1.3, total: 7.3, banya: false },
-    { day: 'Чт', deep: 1.0, total: 6.8, banya: false },
-    { day: 'Пт', deep: 1.2, total: 7.0, banya: false },
-    { day: 'Сб', deep: 2.1, total: 8.5, banya: true },
-    { day: 'Вс', deep: 1.9, total: 8.2, banya: true },
-  ];
+  const totalRitualsLogged = anchorItems.reduce((acc, cur) => acc + cur.count, 0);
+  const maxScale = Math.max(3, ...anchorItems.map((a) => a.count));
 
   return (
     <div className="space-y-5">
@@ -97,7 +138,7 @@ export function VisualStats({ activeTheme }) {
         </div>
       </div>
 
-      {/* 1. ЦВЕТОВОЙ КОВЁР (Мозаика дней месяца по Лео Ауфману) */}
+      {/* 1. ЦВЕТОВОЙ КОВЁР МЕСЯЦА (С началом отсчета 21.11) */}
       <div
         className="p-5 rounded-3xl border transition-all duration-300 shadow-sm"
         style={{
@@ -110,29 +151,54 @@ export function VisualStats({ activeTheme }) {
             className="text-[11px] font-semibold tracking-wider uppercase opacity-70"
             style={{ color: activeTheme.textSecondary }}
           >
-            {period === 'month' ? 'Цветовой ковёр месяца (30 дней)' : 'Цвета недели'}
+            Ноябрь (старт 21.11)
           </span>
           <span className="text-xs font-serif italic text-amber-600">
-            52% — спектр тепла и янтаря
+            {hasTodayEntry ? '1 день зафиксирован ✨' : 'Ждёт первого чекина сегодня'}
           </span>
         </div>
 
-        {/* Сетка дней (мозаика) */}
+        {/* Сетка дней месяца */}
         <div className={`grid gap-1.5 mb-3 ${period === 'month' ? 'grid-cols-6' : 'grid-cols-7'}`}>
-          {(period === 'month' ? monthData : monthData.slice(0, 7)).map((item) => (
-            <div
-              key={item.day}
-              onMouseEnter={() => setHoveredDay(item)}
-              onClick={() => setHoveredDay(item)}
-              className="h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:scale-110 relative shadow-2xs"
-              style={{ backgroundColor: item.color }}
-            >
-              <span className="text-[10px] font-semibold text-white/80">{item.day}</span>
-              {item.isBanya && (
-                <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-200 animate-pulse" />
-              )}
-            </div>
-          ))}
+          {(period === 'month' ? monthDays : monthDays.slice(20, 27)).map((item) => {
+            const isToday = item.day === 21;
+            const hasColor = item.status === 'recorded' && item.color;
+
+            return (
+              <div
+                key={item.day}
+                onMouseEnter={() => setHoveredDay(item)}
+                onClick={() => setHoveredDay(item)}
+                className={`h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all relative ${
+                  isToday ? 'scale-105 shadow-xs' : ''
+                }`}
+                style={{
+                  backgroundColor: hasColor ? item.color : isToday ? `${activeTheme.primary}15` : 'transparent',
+                  border: isToday
+                    ? `2px solid ${activeTheme.primary}`
+                    : hasColor
+                    ? 'none'
+                    : '1px dashed rgba(0,0,0,0.1)',
+                }}
+              >
+                <span
+                  className={`text-[10px] font-semibold ${
+                    hasColor ? 'text-white' : isToday ? 'font-bold' : 'opacity-30'
+                  }`}
+                  style={{ color: hasColor ? '#FFF' : isToday ? activeTheme.primary : undefined }}
+                >
+                  {item.day}
+                </span>
+
+                {isToday && (
+                  <div
+                    className="absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse"
+                    style={{ backgroundColor: activeTheme.primary }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Инфо по выбранному дню */}
@@ -146,13 +212,17 @@ export function VisualStats({ activeTheme }) {
             }}
           >
             <div>
-              <span className="font-semibold">{hoveredDay.day} число:</span> {hoveredDay.mood} · {hoveredDay.ritual}
+              <span className="font-semibold">{hoveredDay.day} ноября:</span>{' '}
+              {hoveredDay.isToday
+                ? hasTodayEntry
+                  ? `${hoveredDay.mood} · ${hoveredDay.note}`
+                  : 'Сегодня. Сделай чекин на вкладке «Сегодня»'
+                : hoveredDay.desc}
             </div>
-            <div className="text-[11px] opacity-75">Сон: {hoveredDay.sleep}ч (глуб. {hoveredDay.deep}ч)</div>
           </div>
         ) : (
           <p className="text-[11px] opacity-60 text-center italic">
-            Нажми на любой камешек дня, чтобы увидеть его детали
+            Нажми на 21 число — это твой сегодняшний день старта
           </p>
         )}
 
@@ -167,7 +237,7 @@ export function VisualStats({ activeTheme }) {
         </div>
       </div>
 
-      {/* 2. НАГЛЯДНЫЙ ГРАФИК: СВЯЗЬ СНА И БАНИ (Доказанный эффект) */}
+      {/* 2. НАГЛЯДНЫЙ ГРАФИК: СВЯЗЬ СНА И БАНИ */}
       <div
         className="p-5 rounded-3xl border transition-all duration-300 shadow-sm"
         style={{
@@ -182,45 +252,33 @@ export function VisualStats({ activeTheme }) {
           >
             Фаза глубокого сна (Deep Sleep)
           </span>
-          <span className="text-xs font-serif font-semibold text-emerald-700">
-            +38% после бани
+          <span className="text-xs font-serif italic text-amber-700">
+            {isBanyaToday ? 'Банный день зафиксирован' : 'Ожидание первой ночи'}
           </span>
         </div>
 
-        <p className="text-xs opacity-75 mb-4" style={{ color: activeTheme.textSecondary }}>
-          Золотые столбики — дни банных ритуалов. Наглядно видно, как тело проваливается в глубокий сон.
-        </p>
-
-        {/* Столбчатая диаграмма */}
-        <div className="flex items-end justify-between gap-2 h-28 pt-4 pb-2 px-1 border-b border-black/10">
-          {weekSleepData.map((item) => {
-            const heightPercent = (item.deep / 2.5) * 100;
-            return (
-              <div key={item.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                <span className="text-[9px] font-medium opacity-60">{item.deep}ч</span>
-                <div
-                  className={`w-full rounded-t-lg transition-all duration-500 shadow-xs ${
-                    item.banya ? 'ring-2 ring-amber-400' : ''
-                  }`}
-                  style={{
-                    height: `${heightPercent}%`,
-                    backgroundColor: item.banya ? '#F59E0B' : activeTheme.primary,
-                  }}
-                  title={`${item.day}: ${item.deep}ч глубокого сна из ${item.total}ч общего`}
-                />
-                <span className="text-[10px] font-semibold opacity-75">{item.day}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-between pt-2.5 text-[11px] opacity-70">
-          <span>Средний глубокий сон: 1.4 ч</span>
-          <span className="text-amber-700 font-semibold">В банные дни: 2.0 ч</span>
-        </div>
+        {isBanyaToday ? (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
+            <div className="font-serif font-medium text-amber-900">
+              🌿 Банный ритуал активен на сегодня (21.11)!
+            </div>
+            <p className="text-[11px] text-amber-800/80 leading-relaxed">
+              Завтра утром после сна данные фазы Deep Sleep отразятся здесь золотым столбиком. Приятного пара и глубокого сна.
+            </p>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-black/[0.02] border border-black/5 text-center text-xs space-y-1.5">
+            <div className="font-serif font-medium" style={{ color: activeTheme.textPrimary }}>
+              Связь сна и бани начнёт строиться с первого банного дня
+            </div>
+            <p className="text-[11px] opacity-70 leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+              Отметьте ритуал «Баня и пар» на вкладке «Якоря», когда пойдете в баню, и приложение покажет, насколько глубже стало восстановление.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* 3. РАСПРЕДЕЛЕНИЕ ТВОИХ ЯКОРЕЙ (Рейтинг заботы) */}
+      {/* 3. РАСПРЕДЕЛЕНИЕ ТВОИХ ЯКОРЕЙ */}
       <div
         className="p-5 rounded-3xl border transition-all duration-300 shadow-sm space-y-3"
         style={{
@@ -228,39 +286,43 @@ export function VisualStats({ activeTheme }) {
           borderColor: activeTheme.borderColor,
         }}
       >
-        <span
-          className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
-          style={{ color: activeTheme.textSecondary }}
-        >
-          Твои проверенные якоря за 30 дней
-        </span>
+        <div className="flex items-center justify-between">
+          <span
+            className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
+            style={{ color: activeTheme.textSecondary }}
+          >
+            Твои проверенные якоря
+          </span>
+          <span className="text-xs opacity-60">
+            {totalRitualsLogged > 0 ? `${totalRitualsLogged} зафиксировано` : 'Пока 0'}
+          </span>
+        </div>
 
-        {[
-          { title: 'Момент присутствия («Я здесь»)', count: 24, max: 30, color: activeTheme.primary },
-          { title: 'Тёплая тарелка (Забота о еде)', count: 19, max: 30, color: '#D97706' },
-          { title: 'Чтение и чай', count: 14, max: 30, color: '#8B5CF6' },
-          { title: 'Прогулка в тишине', count: 12, max: 30, color: '#4D7C6F' },
-          { title: 'Баня и пар', count: 6, max: 8, color: '#C2410C' },
-          { title: 'Осознанная покупка (Пауза)', count: 5, max: 10, color: '#10B981' },
-        ].map((item) => (
-          <div key={item.title} className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span style={{ color: activeTheme.textPrimary }}>{item.title}</span>
-              <span className="font-semibold opacity-80" style={{ color: activeTheme.textSecondary }}>
-                {item.count} раз
-              </span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-black/5 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${(item.count / item.max) * 100}%`,
-                  backgroundColor: item.color,
-                }}
-              />
-            </div>
+        {totalRitualsLogged === 0 ? (
+          <div className="p-3.5 rounded-2xl bg-black/[0.02] border border-black/5 text-xs text-center opacity-75">
+            Якоря пока чистые. Отметь на вкладке «Якоря» то, что согрело тебя сегодня (например, тёплую тарелку или чай).
           </div>
-        ))}
+        ) : (
+          anchorItems.map((item) => (
+            <div key={item.id} className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span style={{ color: activeTheme.textPrimary }}>{item.title}</span>
+                <span className="font-semibold opacity-80" style={{ color: activeTheme.textSecondary }}>
+                  {item.count} раз
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-black/5 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${(item.count / maxScale) * 100}%`,
+                    backgroundColor: item.color,
+                  }}
+                />
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

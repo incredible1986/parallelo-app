@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { MOOD_COLORS } from '../data/brandingTokens';
+import { StorageService } from '../services/storage';
 import { UserProfileCard } from './UserProfileCard';
 import { VisualStats } from './VisualStats';
 
 export function SundayReflection({ activeTheme }) {
   const [selectedSeason, setSelectedSeason] = useState('apples');
+
+  const todayColor = StorageService.get('parallelo_today_color', null);
+  const todayTag = StorageService.get('parallelo_today_tag', null);
 
   const SEASONS = [
     { id: 'spring', title: 'Весенний ветер', age: '18–27', desc: 'Поиск своего пути, пробы и первые шторма' },
@@ -17,41 +21,42 @@ export function SundayReflection({ activeTheme }) {
     {
       name: 'Тело и Пар',
       icon: '🌿',
-      status: 'Цветёт и согревается',
-      note: 'Баня и глубокий сон держат корни крепкими',
+      status: 'Посажено 21.11',
+      note: 'Первые семена бережности к телу заложены сегодня',
       color: '#10B981',
     },
     {
       name: 'Душа и Тишина',
       icon: '🌸',
-      status: 'Зеленеет',
-      note: 'Вечерние книги и прогулки питают покой',
+      status: 'Ждёт первого полива',
+      note: 'Вечерние минуты тишины и страницы книг',
       color: '#8B5CF6',
     },
     {
       name: 'Тепло и Близкие',
       icon: '🌾',
-      status: 'Просит немного влаги',
-      note: 'Позвони или просто посиди рядом в тишине',
+      status: 'Прорастает',
+      note: 'Просто быть рядом без спешки и ожиданий',
       color: '#F59E0B',
     },
     {
       name: 'Дело и Ремесло',
       icon: '🪵',
-      status: 'Отдыхает под снегом',
-      note: 'Зима — время покоя, ростки взойдут весной',
+      status: 'В естественном ритме',
+      note: 'Движение вперёд без выгорания и суеты',
       color: '#64748B',
     },
   ];
 
+  // Неделя: старт с субботы 21.11
   const weekDays = [
-    { day: 'Пн', color: MOOD_COLORS[0].hex, tag: 'В ладонях' },
-    { day: 'Вт', color: MOOD_COLORS[1].hex, tag: 'Тёплый душ' },
-    { day: 'Ср', color: MOOD_COLORS[2].hex, tag: 'Шелест книг' },
-    { day: 'Чт', color: MOOD_COLORS[0].hex, tag: 'Тёплая кружка' },
-    { day: 'Пт', color: MOOD_COLORS[3].hex, tag: 'Уютный плед' },
-    { day: 'Сб', color: MOOD_COLORS[0].hex, tag: 'Баня и пар' },
-    { day: 'Вс', color: MOOD_COLORS[2].hex, tag: 'Тишина' },
+    { day: 'Пн', color: null, tag: 'До старта' },
+    { day: 'Вт', color: null, tag: 'До старта' },
+    { day: 'Ср', color: null, tag: 'До старта' },
+    { day: 'Чт', color: null, tag: 'До старта' },
+    { day: 'Пт', color: null, tag: 'До старта' },
+    { day: 'Сб', color: todayColor ? todayColor.hex : null, isToday: true, tag: todayTag || 'Сегодня (21.11)' },
+    { day: 'Вс', color: null, tag: 'Впереди' },
   ];
 
   return (
@@ -221,15 +226,30 @@ export function SundayReflection({ activeTheme }) {
           {weekDays.map((item, idx) => (
             <div key={idx} className="flex flex-col items-center gap-1.5">
               <div
-                className="w-full h-14 rounded-2xl flex items-center justify-center shadow-xs transition-transform hover:scale-105"
-                style={{ backgroundColor: item.color }}
+                className={`w-full h-14 rounded-2xl flex items-center justify-center transition-all ${
+                  item.isToday ? 'scale-105 shadow-xs' : ''
+                }`}
+                style={{
+                  backgroundColor: item.color ? item.color : item.isToday ? `${activeTheme.primary}15` : 'transparent',
+                  border: item.isToday
+                    ? `2px solid ${activeTheme.primary}`
+                    : item.color
+                    ? 'none'
+                    : '1px dashed rgba(0,0,0,0.1)',
+                }}
                 title={`${item.day}: ${item.tag}`}
               >
-                <div className="w-2 h-2 rounded-full bg-white/70" />
+                {item.color ? (
+                  <div className="w-2 h-2 rounded-full bg-white/80 animate-presence-breathe" />
+                ) : item.isToday ? (
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
+                )}
               </div>
               <span
-                className="text-[11px] font-medium opacity-70"
-                style={{ color: activeTheme.textSecondary }}
+                className={`text-[11px] font-medium ${item.isToday ? 'font-bold' : 'opacity-50'}`}
+                style={{ color: item.isToday ? activeTheme.primary : activeTheme.textSecondary }}
               >
                 {item.day}
               </span>
@@ -241,10 +261,20 @@ export function SundayReflection({ activeTheme }) {
           className="p-3.5 rounded-2xl bg-black/[0.02] border border-black/5 text-xs leading-relaxed"
           style={{ color: activeTheme.textPrimary }}
         >
-          За неделю чаще всего рядом были <strong className="font-semibold">вода</strong>,{' '}
-          <strong className="font-semibold">тепло кружки</strong> и{' '}
-          <strong className="font-semibold">банный пар</strong>. Преобладающий цвет твоего покоя —{' '}
-          <span className="font-serif italic text-amber-700">янтарное солнце</span>.
+          {todayColor ? (
+            <>
+              Ты начала свой путь в субботу, 21 ноября. Твой цвет сегодня —{' '}
+              <strong className="font-semibold font-serif italic" style={{ color: todayColor.hex }}>
+                {todayColor.name}
+              </strong>
+              {todayTag && <> · рядом было <em>{todayTag}</em></>}. Ты здесь, и этого достаточно.
+            </>
+          ) : (
+            <>
+              Сегодня <strong className="font-semibold">суббота, 21 ноября</strong> — твой первый день старта.
+              Сделай вечерний чекин на вкладке «Сегодня», чтобы зажечь первый камешек недели.
+            </>
+          )}
         </div>
       </div>
 
