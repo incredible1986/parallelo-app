@@ -166,23 +166,23 @@ export function UserProfileCard({ activeTheme }) {
         </p>
       </div>
 
-      {/* 4. Тумблер Apple Health */}
+      {/* 4. Тумблер Health Connect / realme Здоровье */}
       <div
         onClick={() => setHealthSync(!healthSync)}
-        className="flex items-center justify-between p-3 rounded-2xl border cursor-pointer"
+        className="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all"
         style={{
           borderColor: activeTheme.borderColor,
           backgroundColor: healthSync ? activeTheme.surfaceContainer : 'transparent',
         }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-red-500 text-xs">♥</span>
+          <span className="text-emerald-600 text-xs font-bold">🌿</span>
           <div>
             <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-              Синхронизация с Apple Здоровьем
+              Синхронизация здоровья (Health Connect / realme)
             </div>
             <div className="text-[10px] opacity-70" style={{ color: activeTheme.textSecondary }}>
-              Авто-чтение сна и шагов без ручного ввода
+              Чтение фаз глубокого сна и шагов со смартфона или часов
             </div>
           </div>
         </div>
