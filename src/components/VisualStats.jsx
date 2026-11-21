@@ -16,12 +16,15 @@ export function VisualStats({ activeTheme }) {
   const todayColor = StorageService.get('parallelo_today_color', null);
   const todayTag = StorageService.get('parallelo_today_tag', null);
   const todayNote = StorageService.get('parallelo_today_note', '');
+  const todayWellbeing = StorageService.get('parallelo_today_wellbeing', 'in_flow');
+  const todaySymptoms = StorageService.get('parallelo_today_symptoms', []);
   const loggedRituals = StorageService.get('parallelo_logged_rituals', []);
   const shoppingPauses = StorageService.get('parallelo_shopping_pauses', []);
   const history = StorageService.get('parallelo_history', []);
 
   const hasTodayEntry = !!todayColor;
   const isBanyaToday = loggedRituals.includes('banya');
+  const isSickToday = todayWellbeing === 'sick';
 
   // Формируем сетку 30 дней ноября с началом отсчета 21.11
   const monthDays = Array.from({ length: 30 }, (_, i) => {
@@ -37,12 +40,15 @@ export function VisualStats({ activeTheme }) {
     if (day === 21) {
       return {
         day,
-        status: hasTodayEntry ? 'recorded' : 'today_waiting',
-        color: hasTodayEntry ? todayColor.hex : null,
-        mood: hasTodayEntry ? todayColor.name : 'Ожидает чекина',
-        ritual: loggedRituals.length > 0 ? `${loggedRituals.length} ритуала(ов)` : 'Пока без ритуалов',
-        note: todayNote || todayTag || 'Первый день пути',
+        status: hasTodayEntry || isSickToday ? 'recorded' : 'today_waiting',
+        color: todayColor ? todayColor.hex : isSickToday ? '#4D7C6F' : null,
+        mood: isSickToday ? 'Режим восстановления' : hasTodayEntry ? todayColor.name : 'Ожидает чекина',
+        ritual: isSickToday
+          ? (todaySymptoms.length > 0 ? `Симптомы: ${todaySymptoms.slice(0, 2).join(', ')}` : 'Покой и тёплый чай')
+          : loggedRituals.length > 0 ? `${loggedRituals.length} ритуала(ов)` : 'Пока без ритуалов',
+        note: todayNote || todayTag || (isSickToday ? 'Разрешаю себе вечер без ожиданий' : 'Первый день пути'),
         isToday: true,
+        isSick: isSickToday,
         isBanya: isBanyaToday,
       };
     }
@@ -195,6 +201,10 @@ export function VisualStats({ activeTheme }) {
                 >
                   {item.day}
                 </span>
+
+                {item.isSick && (
+                  <span className="absolute -top-1.5 -left-1 text-[10px]">🍵</span>
+                )}
 
                 {isToday && (
                   <div

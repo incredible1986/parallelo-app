@@ -22,11 +22,60 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
   const [feltAlive, setFeltAlive] = useState(() => StorageService.get('parallelo_today_alive', true));
   const [submittedMessage, setSubmittedMessage] = useState(null);
 
-  // Состояния для новых практик
+  // Самочувствие тела и симптомы (Режим пледа и заботы)
+  const [wellbeing, setWellbeing] = useState(() => 
+    StorageService.get('parallelo_today_wellbeing', 'in_flow')
+  );
+  const [symptoms, setSymptoms] = useState(() => 
+    StorageService.get('parallelo_today_symptoms', [])
+  );
+  const [careActionDone, setCareActionDone] = useState(null);
+
+  const SYMPTOMS_LIST = [
+    { id: 'throat', label: 'Першит горло' },
+    { id: 'head', label: 'Шумит голова' },
+    { id: 'weakness', label: 'Слабость и ломота' },
+    { id: 'fever', label: 'Озноб / Температура' },
+    { id: 'nose', label: 'Насморк / Заложенность' },
+    { id: 'eyes', label: 'Тяжесть в глазах' },
+    { id: 'cough', label: 'Кашель' },
+  ];
+
+  // Состояния для практик
   const [isCocoonOpen, setIsCocoonOpen] = useState(false);
   const [allowNoExpectations, setAllowNoExpectations] = useState(false);
 
-  const isDandelionDay = selectedColor.id === 'stone'; // «Тёплый камень» — день спада/отдыха
+  const isDandelionDay = selectedColor.id === 'stone' || wellbeing === 'sick';
+
+  const handleWellbeingChange = (mode) => {
+    setWellbeing(mode);
+    StorageService.set('parallelo_today_wellbeing', mode);
+    if (mode === 'sick') {
+      const healingColor = MOOD_COLORS.find(c => c.id === 'sage') || MOOD_COLORS[2];
+      setSelectedColor(healingColor);
+      StorageService.set('parallelo_today_color', healingColor);
+      setAllowNoExpectations(true);
+      showMessage('Включён режим восстановления. Сегодня только покой и тепло.');
+    } else if (mode === 'tired') {
+      const stoneColor = MOOD_COLORS.find(c => c.id === 'stone') || MOOD_COLORS[4];
+      setSelectedColor(stoneColor);
+      StorageService.set('parallelo_today_color', stoneColor);
+      showMessage('Усталость услышана. Вечер для мягкого замедления.');
+    } else {
+      showMessage('Тело в ресурсе и силе. Хорошего вечера.');
+    }
+  };
+
+  const handleToggleSymptom = (symLabel) => {
+    let updated;
+    if (symptoms.includes(symLabel)) {
+      updated = symptoms.filter(s => s !== symLabel);
+    } else {
+      updated = [...symptoms, symLabel];
+    }
+    setSymptoms(updated);
+    StorageService.set('parallelo_today_symptoms', updated);
+  };
 
   const handleColorPick = (color) => {
     setSelectedColor(color);
@@ -57,6 +106,8 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
     StorageService.set('parallelo_today_tag', selectedTag);
     StorageService.set('parallelo_today_note', sensoryNote);
     StorageService.set('parallelo_today_alive', feltAlive);
+    StorageService.set('parallelo_today_wellbeing', wellbeing);
+    StorageService.set('parallelo_today_symptoms', symptoms);
 
     // Добавляем в историю дней
     const history = StorageService.get('parallelo_history', []);
@@ -70,6 +121,8 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
       note: sensoryNote,
       feltAlive,
       isDandelionDay,
+      wellbeing,
+      symptoms,
     });
     StorageService.set('parallelo_history', filtered.slice(0, 60));
 
@@ -80,16 +133,178 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
         note: sensoryNote,
         feltAlive,
         isDandelionDay,
+        wellbeing,
+        symptoms,
         date: new Date().toISOString(),
       });
     }
     showMessage('Зафиксировано в твоём саду. Дыши спокойно.');
   };
 
+  const displayQuestion = wellbeing === 'sick' 
+    ? 'Что прямо сейчас согреет и принесёт телу облегчение?' 
+    : activeQuestion.question;
+
+  const displayTags = wellbeing === 'sick'
+    ? ['Горячий чай с лимоном', 'Тёплое одеяло', 'Тишина и долгий сон', 'Свежий воздух из форточки']
+    : activeQuestion.tags;
+
   return (
     <div className="space-y-5">
       {/* 0. Карточка ясности («Тест для папы»: Что это? Зачем? Что делать?) */}
       <WelcomeBanner activeTheme={activeTheme} />
+
+      {/* 0.5. Блок «Самочувствие тела и симптомы» (Режим пледа и заботы) */}
+      <div
+        className="p-5 rounded-3xl border transition-all duration-300 shadow-sm space-y-3.5"
+        style={{
+          backgroundColor: activeTheme.surfaceCard,
+          borderColor: activeTheme.borderColor,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <span
+              className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
+              style={{ color: activeTheme.textSecondary }}
+            >
+              Самочувствие тела
+            </span>
+            <div className="text-sm font-serif font-medium" style={{ color: activeTheme.textPrimary }}>
+              Как себя чувствует тело сегодня?
+            </div>
+          </div>
+          <span
+            className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold ${
+              wellbeing === 'sick'
+                ? 'bg-purple-500/15 text-purple-800'
+                : wellbeing === 'tired'
+                ? 'bg-amber-500/15 text-amber-800'
+                : 'bg-emerald-500/15 text-emerald-800'
+            }`}
+          >
+            {wellbeing === 'sick' ? 'Режим покоя 🍵' : wellbeing === 'tired' ? 'Усталость ☁️' : 'В ресурсе ✨'}
+          </span>
+        </div>
+
+        {/* 3 состояния: В ресурсе, Усталость, Приболела */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { id: 'in_flow', label: 'В ресурсе', icon: '✨' },
+            { id: 'tired', label: 'Усталость', icon: '☁️' },
+            { id: 'sick', label: 'Приболела', icon: '🍵' },
+          ].map((item) => {
+            const isSel = wellbeing === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleWellbeingChange(item.id)}
+                className={`py-2 px-1.5 rounded-2xl border text-center transition-all ${
+                  isSel ? 'shadow-xs font-semibold scale-102' : 'opacity-65 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: isSel ? activeTheme.surfaceContainer : 'transparent',
+                  borderColor: isSel ? activeTheme.primary : activeTheme.borderColor,
+                  color: activeTheme.textPrimary,
+                }}
+              >
+                <div className="text-base">{item.icon}</div>
+                <div className="text-[11px] font-serif mt-0.5">{item.label}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Раскрывающийся блок симптомов, если выбрано «Приболела» */}
+        {wellbeing === 'sick' && (
+          <div className="space-y-3 pt-2 border-t border-black/5 animate-fade-in">
+            <span
+              className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
+              style={{ color: activeTheme.textSecondary }}
+            >
+              Что сейчас ощущается в теле:
+            </span>
+
+            <div className="flex flex-wrap gap-1.5">
+              {SYMPTOMS_LIST.map((sym) => {
+                const isChecked = symptoms.includes(sym.label);
+                return (
+                  <button
+                    key={sym.id}
+                    type="button"
+                    onClick={() => handleToggleSymptom(sym.label)}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
+                      isChecked
+                        ? 'font-medium shadow-xs scale-102 bg-purple-100 text-purple-900 border-purple-300'
+                        : 'bg-black/[0.02] border-black/5 opacity-75 hover:opacity-100'
+                    }`}
+                    style={{
+                      color: isChecked ? undefined : activeTheme.textPrimary,
+                    }}
+                  >
+                    {sym.label} {isChecked && '✓'}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Островок выздоровления */}
+            <div
+              className="p-4 rounded-2xl border text-xs space-y-2.5"
+              style={{
+                backgroundColor: `${activeTheme.secondary}12`,
+                borderColor: `${activeTheme.secondary}30`,
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🫖 🛌</span>
+                <div className="font-serif font-semibold" style={{ color: activeTheme.textPrimary }}>
+                  Островок выздоровления
+                </div>
+              </div>
+              <p className="text-[11px] opacity-80 leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                Твоё тело занято важным делом — оно восстанавливается. Разреши себе сегодня не соответствовать ничьим ожиданиям.
+              </p>
+
+              {/* Быстрые действия заботы */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCareActionDone('Чай заварен. Тепло согревает изнутри.');
+                    setTimeout(() => setCareActionDone(null), 3500);
+                  }}
+                  className="p-2 rounded-xl bg-white border border-black/10 text-left text-[11px] hover:shadow-xs transition-all"
+                  style={{ color: activeTheme.textPrimary }}
+                >
+                  <div className="font-serif">🍵 Тёплый чай/морс</div>
+                  <div className="text-[9px] opacity-60">С лимоном или травами</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCareActionDone('Одеяло укутало. Спи спокойно, ничего не сгорит.');
+                    setTimeout(() => setCareActionDone(null), 3500);
+                  }}
+                  className="p-2 rounded-xl bg-white border border-black/10 text-left text-[11px] hover:shadow-xs transition-all"
+                  style={{ color: activeTheme.textPrimary }}
+                >
+                  <div className="font-serif">🛌 Укутаться в плед</div>
+                  <div className="text-[9px] opacity-60">Сон — лучшее лекарство</div>
+                </button>
+              </div>
+
+              {careActionDone && (
+                <div className="text-center font-serif italic text-xs text-purple-900 pt-1 animate-fade-in">
+                  {careActionDone}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 1. Блок вопроса вечера (Arena AI 14 вопросов) */}
       <div
@@ -106,7 +321,7 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
           >
             Вопрос вечера · {activeQuestion.day}
           </span>
-          {todayQuestions.length > 1 && (
+          {todayQuestions.length > 1 && wellbeing !== 'sick' && (
             <button
               onClick={() => setQuestionIdx((prev) => (prev + 1) % todayQuestions.length)}
               className="text-xs opacity-60 hover:opacity-100 underline decoration-dotted transition-opacity"
@@ -121,12 +336,12 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
           className="text-lg font-serif font-normal leading-snug mb-4"
           style={{ color: activeTheme.textPrimary }}
         >
-          {activeQuestion.question}
+          {displayQuestion}
         </h3>
 
         {/* Теги для ответа в один тап */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {activeQuestion.tags.map((tag) => {
+          {displayTags.map((tag) => {
             const isSelected = selectedTag === tag;
             return (
               <button
