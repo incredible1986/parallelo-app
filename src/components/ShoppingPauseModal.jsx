@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StorageService } from '../services/storage';
 
 /**
  * Практика «Осознанная покупка» (Пауза перед корзиной маркетплейса)
@@ -12,6 +13,15 @@ export function ShoppingPauseModal({ activeTheme, isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handlePostpone = () => {
+    if (itemName.trim()) {
+      const pauses = StorageService.get('parallelo_shopping_pauses', []);
+      pauses.unshift({
+        item: itemName.trim(),
+        feeling: selectedFeeling,
+        timestamp: new Date().toISOString(),
+      });
+      StorageService.set('parallelo_shopping_pauses', pauses.slice(0, 20));
+    }
     setResultMessage('Отложено на 24 часа. Ты сберегла внимание и место в доме. Выдохни.');
     setTimeout(() => {
       setResultMessage(null);

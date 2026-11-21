@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MOOD_COLORS } from '../data/brandingTokens';
 import { WEEKLY_QUESTIONS } from '../data/questionsData';
+import { StorageService } from '../services/storage';
 import { IconPresence } from './RitualIcons';
 import { WelcomeBanner } from './WelcomeBanner';
 import { CocoonModal } from './CocoonModal';
@@ -11,10 +12,14 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
   const [questionIdx, setQuestionIdx] = useState(0);
   const activeQuestion = todayQuestions[questionIdx] || WEEKLY_QUESTIONS[0];
 
-  const [selectedTag, setSelectedTag] = useState(null);
-  const [selectedColor, setSelectedColor] = useState(MOOD_COLORS[0]);
-  const [sensoryNote, setSensoryNote] = useState('');
-  const [feltAlive, setFeltAlive] = useState(true);
+  const [selectedTag, setSelectedTag] = useState(() => StorageService.get('parallelo_today_tag', null));
+  const [selectedColor, setSelectedColor] = useState(() => {
+    const saved = StorageService.get('parallelo_today_color', null);
+    if (!saved) return MOOD_COLORS[0];
+    return MOOD_COLORS.find(c => c.id === saved.id) || MOOD_COLORS[0];
+  });
+  const [sensoryNote, setSensoryNote] = useState(() => StorageService.get('parallelo_today_note', ''));
+  const [feltAlive, setFeltAlive] = useState(() => StorageService.get('parallelo_today_alive', true));
   const [submittedMessage, setSubmittedMessage] = useState(null);
 
   // Состояния для новых практик
@@ -23,13 +28,20 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
 
   const isDandelionDay = selectedColor.id === 'stone'; // «Тёплый камень» — день спада/отдыха
 
+  const handleColorPick = (color) => {
+    setSelectedColor(color);
+    StorageService.set('parallelo_today_color', color);
+  };
+
   const handleTagClick = (tag) => {
     setSelectedTag(tag);
+    StorageService.set('parallelo_today_tag', tag);
     showMessage('Тихо. Этого достаточно.');
   };
 
   const handleSkip = (reason) => {
     setSelectedTag(reason);
+    StorageService.set('parallelo_today_tag', reason);
     showMessage('Тихо. Этого достаточно.');
   };
 
@@ -41,6 +53,26 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
   };
 
   const handleSave = () => {
+    StorageService.set('parallelo_today_color', selectedColor);
+    StorageService.set('parallelo_today_tag', selectedTag);
+    StorageService.set('parallelo_today_note', sensoryNote);
+    StorageService.set('parallelo_today_alive', feltAlive);
+
+    // Добавляем в историю дней
+    const history = StorageService.get('parallelo_history', []);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const filtered = history.filter(h => h.date !== todayStr);
+    filtered.unshift({
+      date: todayStr,
+      color: selectedColor.hex,
+      mood: selectedColor.name,
+      tag: selectedTag,
+      note: sensoryNote,
+      feltAlive,
+      isDandelionDay,
+    });
+    StorageService.set('parallelo_history', filtered.slice(0, 60));
+
     if (onSaveState) {
       onSaveState({
         color: selectedColor,
@@ -185,7 +217,7 @@ export function DailyCheckin({ activeTheme, onSaveState }) {
             return (
               <button
                 key={c.id}
-                onClick={() => setSelectedColor(c)}
+                onClick={() => handleColorPick(c)}
                 className={`group relative h-12 rounded-2xl flex items-center justify-center transition-all duration-300 border ${
                   isChosen
                     ? 'ring-2 ring-offset-2 scale-105 shadow-md'

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PALETTES } from './data/brandingTokens';
+import { StorageService } from './services/storage';
 import { Header } from './components/Header';
 import { ThemeSelector } from './components/ThemeSelector';
 import { DailyCheckin } from './components/DailyCheckin';
@@ -7,8 +8,16 @@ import { RitualLogger } from './components/RitualLogger';
 import { SundayReflection } from './components/SundayReflection';
 
 export default function App() {
-  const [activeTheme, setActiveTheme] = useState(PALETTES.azure_spring);
+  const [activeTheme, setActiveTheme] = useState(() => {
+    const savedId = StorageService.get('parallelo_theme_id', 'azure_spring');
+    return PALETTES[savedId] || PALETTES.azure_spring;
+  });
   const [activeTab, setActiveTab] = useState('today');
+
+  const handleSelectTheme = (theme) => {
+    setActiveTheme(theme);
+    StorageService.set('parallelo_theme_id', theme.id);
+  };
 
   return (
     <div
@@ -30,7 +39,7 @@ export default function App() {
           <div className="px-5 pt-3 pb-2 flex justify-center">
             <ThemeSelector
               activeTheme={activeTheme}
-              onSelectTheme={setActiveTheme}
+              onSelectTheme={handleSelectTheme}
             />
           </div>
         </div>

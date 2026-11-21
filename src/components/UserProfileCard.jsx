@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
+import { StorageService } from '../services/storage';
 
 /**
  * Карточка «Мой ритм и ориентиры тела» (Бережный онбординг / профиль)
  * Позволяет настроить свой сезон жизни и контекст тела БЕЗ диетического стыда.
  */
 export function UserProfileCard({ activeTheme }) {
-  const [name, setName] = useState('Юлия');
-  const [season, setSeason] = useState('apples');
-  const [height, setHeight] = useState('168');
-  const [weight, setWeight] = useState('64');
-  const [healthSync, setHealthSync] = useState(true);
-  const [notificationMode, setNotificationMode] = useState('gentle'); // 'gentle' | 'silent'
-  const [twilightTime, setTwilightTime] = useState('21:00');
-  const [banyaReminder, setBanyaReminder] = useState(true);
+  const savedProfile = StorageService.get('parallelo_user_profile', {});
+
+  const [name, setName] = useState(savedProfile.name || 'Юлия');
+  const [season, setSeason] = useState(savedProfile.season || 'apples');
+  const [height, setHeight] = useState(savedProfile.height || '168');
+  const [weight, setWeight] = useState(savedProfile.weight || '64');
+  const [healthSync, setHealthSync] = useState(savedProfile.healthSync ?? true);
+  const [notificationMode, setNotificationMode] = useState(savedProfile.notificationMode || 'gentle'); // 'gentle' | 'silent'
+  const [twilightTime, setTwilightTime] = useState(savedProfile.twilightTime || '21:00');
+  const [banyaReminder, setBanyaReminder] = useState(savedProfile.banyaReminder ?? true);
   const [savedNote, setSavedNote] = useState(null);
 
   const SEASONS = [
@@ -23,7 +26,17 @@ export function UserProfileCard({ activeTheme }) {
   ];
 
   const handleSave = () => {
-    setSavedNote('Твои ритмы бережно сохранены. Приложение говорит с тобой на твоём языке.');
+    StorageService.set('parallelo_user_profile', {
+      name,
+      season,
+      height,
+      weight,
+      healthSync,
+      notificationMode,
+      twilightTime,
+      banyaReminder,
+    });
+    setSavedNote('Твои ритмы бережно сохранены в памяти телефона. Приложение говорит с тобой на твоём языке.');
     setTimeout(() => setSavedNote(null), 4000);
   };
 

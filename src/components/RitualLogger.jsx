@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { RITUALS_CATALOG } from '../data/questionsData';
 import { RITUAL_ICONS } from './RitualIcons';
 import { ShoppingPauseModal } from './ShoppingPauseModal';
+import { StorageService } from '../services/storage';
 
 export function RitualLogger({ activeTheme, onLogRitual }) {
-  const [loggedRituals, setLoggedRituals] = useState(['banya', 'warm_plate']);
+  const [loggedRituals, setLoggedRituals] = useState(() => 
+    StorageService.get('parallelo_logged_rituals', ['banya', 'warm_plate'])
+  );
   const [feedback, setFeedback] = useState(null);
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);
 
@@ -29,6 +32,7 @@ export function RitualLogger({ activeTheme, onLogRitual }) {
       if (onLogRitual) onLogRitual(ritual);
     }
     setLoggedRituals(updated);
+    StorageService.set('parallelo_logged_rituals', updated);
     setTimeout(() => setFeedback(null), 3500);
   };
 
