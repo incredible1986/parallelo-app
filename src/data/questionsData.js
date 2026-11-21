@@ -148,6 +148,14 @@ export const RITUALS_CATALOG = [
     desc: 'Без наушников и телефона, слыша свои шаги',
   },
   {
+    id: 'movement',
+    title: 'Движение и тренировка',
+    iconKey: 'movement',
+    duration: '20–45 мин',
+    category: 'Телесная радость',
+    desc: 'Растяжка, силовая, бег или зарядка в удовольствие, без насилия над телом',
+  },
+  {
     id: 'mindful_shopping',
     title: 'Осознанная покупка',
     iconKey: 'shopping',

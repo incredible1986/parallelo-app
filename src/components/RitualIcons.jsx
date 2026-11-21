@@ -138,6 +138,25 @@ export const IconShopping = ({ className = 'w-6 h-6', ...props }) => (
   </svg>
 );
 
+// Движение и тренировка (Телесная радость без изнурения)
+export const IconMovement = ({ className = 'w-6 h-6', ...props }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <circle cx="12" cy="4.5" r="2" />
+    <path d="M4 19c3-3 6-5 8-5s5 2 8 5" />
+    <path d="M8 12.5l4-3.5 4 2.5 4-3" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
 export const RITUAL_ICONS = {
   banya: IconBanya,
   walk: IconWalk,
@@ -146,4 +165,5 @@ export const RITUAL_ICONS = {
   presence: IconPresence,
   bowl: IconBowl,
   shopping: IconShopping,
+  movement: IconMovement,
 };

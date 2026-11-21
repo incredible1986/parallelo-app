@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { RITUALS_CATALOG } from '../data/questionsData';
 import { RITUAL_ICONS } from './RitualIcons';
 import { ShoppingPauseModal } from './ShoppingPauseModal';
+import { WorkoutModal } from './WorkoutModal';
 import { StorageService } from '../services/storage';
 
 export function RitualLogger({ activeTheme, onLogRitual }) {
@@ -11,10 +12,16 @@ export function RitualLogger({ activeTheme, onLogRitual }) {
   );
   const [feedback, setFeedback] = useState(null);
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);
+  const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
 
   const handleToggleRitual = (ritual) => {
     if (ritual.id === 'mindful_shopping') {
       setIsShoppingOpen(true);
+      return;
+    }
+
+    if (ritual.id === 'movement') {
+      setIsWorkoutOpen(true);
       return;
     }
 
@@ -34,6 +41,16 @@ export function RitualLogger({ activeTheme, onLogRitual }) {
     }
     setLoggedRituals(updated);
     StorageService.set('parallelo_logged_rituals', updated);
+    setTimeout(() => setFeedback(null), 3500);
+  };
+
+  const handleWorkoutComplete = (workoutData) => {
+    if (!loggedRituals.includes('movement')) {
+      const updated = [...loggedRituals, 'movement'];
+      setLoggedRituals(updated);
+      StorageService.set('parallelo_logged_rituals', updated);
+    }
+    setFeedback(`«${workoutData.type}» зафиксирована. Тело наполнено жизнью и теплом.`);
     setTimeout(() => setFeedback(null), 3500);
   };
 
@@ -175,7 +192,7 @@ export function RitualLogger({ activeTheme, onLogRitual }) {
               className="text-xs font-medium"
               style={{ color: activeTheme.textPrimary }}
             >
-              Синхронизация с Apple Здоровьем
+              Синхронизация здоровья (Health Connect / realme)
             </div>
             <div
               className="text-[11px] opacity-70"
@@ -197,6 +214,14 @@ export function RitualLogger({ activeTheme, onLogRitual }) {
         activeTheme={activeTheme}
         isOpen={isShoppingOpen}
         onClose={() => setIsShoppingOpen(false)}
+      />
+
+      {/* Модальное окно движения и тренировок */}
+      <WorkoutModal
+        activeTheme={activeTheme}
+        isOpen={isWorkoutOpen}
+        onClose={() => setIsWorkoutOpen(false)}
+        onComplete={handleWorkoutComplete}
       />
     </div>
   );

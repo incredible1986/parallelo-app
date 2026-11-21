@@ -69,6 +69,12 @@ export function VisualStats({ activeTheme }) {
       color: '#D97706',
     },
     {
+      id: 'movement',
+      title: 'Движение и тренировка',
+      count: loggedRituals.includes('movement') ? 1 : 0,
+      color: '#0284C7',
+    },
+    {
       id: 'banya',
       title: 'Баня и пар',
       count: loggedRituals.includes('banya') ? 1 : 0,
