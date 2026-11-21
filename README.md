@@ -1,16 +1,33 @@
-# React + Vite
+# Parallelo — Тело и душа 🌿
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> *«Тихо. Здесь ничего не сгорело.»*  
+> Приложение бережных ритуалов, сенсорного заземления и жизненных ритмов без токсичной продуктивности. Вдохновлено романом Рэя Брэдбери «Вино из одуванчиков» и банными ритуалами глубокого присутствия.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🍃 Ключевые возможности
 
-## React Compiler
+1. **Островок заземления:** Первый экран без лишней сложности («Тест для папы») — за 15 секунд возвращает в настоящий момент.
+2. **День горького одуванчика:** Право на усталость и «Вечер без ожиданий». Никаких штрафов и разбитых стриков.
+3. **Ритуал «Сбросить кокон»:** Интерактивное растворение тревожных мыслей и чужих ожиданий в тишине.
+4. **Тёплая тарелка:** Забота о насыщении и температуре пищи без подсчёта калорий и тревоги.
+5. **Осознанная покупка:** 24-часовая пауза заземления перед импульсивным шопингом.
+6. **Наглядная статистика:**
+   - 30-дневный цветовой ковёр-мозаика по Лео Ауфману.
+   - График связи горячего пара бани и фазы глубокого сна (+38% Deep Sleep).
+   - «Сад твоей жизни» вместо токсичного колеса баланса.
+7. **Уведомления «Шёпот сумерек»:** Одно бережное приглашение в вечерний час или режим «Полная тишина».
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🎨 Три живые палитры (Stitch Design)
+- **Лазурная купель** — прохладный покой купели и чистое утреннее небо.
+- **Сумеречный сад** — вечерний шалфей, ветви деревьев и тишина заката.
+- **Тёплая керамика** — согревающий терракот, печной пар и уют чая.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+---
+
+## 🛠 Технологический стек
+- **Frontend:** React 19, Vite, Tailwind CSS 3.4
+- **Mobile / PWA:** Standalone Web App Manifest, Apple Touch Support
+- **Deploy:** Vercel SPA Rewrites
