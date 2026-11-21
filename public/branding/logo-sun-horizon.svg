@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <!-- Background: Soft Stone -->
+  <rect width="800" height="800" fill="#EFEAE1" />
+
+  <!-- Optional App Icon Framing Container -->
+  <rect x="120" y="120" width="560" height="560" rx="126" fill="#F5F1E8" stroke="#E2DBD0" stroke-width="2" />
+
+  <!-- Swiss-Zen Emblem Composition -->
+  <g transform="translate(0, -20)">
+    <!-- Soft Rising Sun -->
+    <path d="M 240 428 A 160 160 0 0 1 560 428 Z" fill="#F59E0B" />
+
+    <!-- Horizon Line 1: Clay Terracotta -->
+    <rect x="240" y="454" width="320" height="26" rx="3" fill="#C25236" />
+
+    <!-- Horizon Line 2: Clay Terracotta -->
+    <rect x="240" y="506" width="320" height="26" rx="3" fill="#C25236" />
+  </g>
+
+  <text x="400" y="660" 
+        font-family="'Playfair Display', Georgia, serif" 
+        font-size="36" 
+        font-weight="400" 
+        letter-spacing="6" 
+        fill="#2C3531" 
+        text-anchor="middle">
+    PARALLELO
+  </text>
+</svg>

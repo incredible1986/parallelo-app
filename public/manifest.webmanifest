@@ -1,0 +1,17 @@
+{
+  "name": "Parallelo — Тело и душа",
+  "short_name": "Parallelo",
+  "description": "Приложение бережных ритуалов и сенсорного заземления",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDF9F1",
+  "theme_color": "#1E3A5F",
+  "icons": [
+    {
+      "src": "/branding/parallelo-p-3d.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

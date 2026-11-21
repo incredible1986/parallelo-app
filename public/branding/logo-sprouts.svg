@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <!-- Background: Warm Ceramic Cream -->
+  <rect width="800" height="800" fill="#FAF7F2" />
+
+  <!-- Logo Mark: Two Parallel Organic Sprouts / Streams -->
+  <g transform="translate(20, -20)">
+    <!-- Upper/Left Curve: Warm Terracotta Amber (Body) -->
+    <path d="M 260 480 C 260 320, 350 240, 500 220" 
+          fill="none" 
+          stroke="#C2410C" 
+          stroke-width="36" 
+          stroke-linecap="round" />
+
+    <!-- Lower/Right Curve: Calming Sage Botanical Green (Soul) -->
+    <path d="M 310 540 C 310 380, 400 300, 550 280" 
+          fill="none" 
+          stroke="#84A98C" 
+          stroke-width="36" 
+          stroke-linecap="round" />
+  </g>
+
+  <!-- Typography -->
+  <text x="400" y="660" 
+        font-family="'Playfair Display', Georgia, serif" 
+        font-size="46" 
+        font-weight="400"
+        letter-spacing="8" 
+        fill="#2C3531" 
+        text-anchor="middle">
+    PARALLELO
+  </text>
+  
+  <text x="404" y="695" 
+        font-family="'Plus Jakarta Sans', system-ui, sans-serif" 
+        font-size="14" 
+        font-weight="500"
+        letter-spacing="6" 
+        fill="#84A98C" 
+        text-anchor="middle">
+    BODY &amp; SOUL
+  </text>
+</svg>
