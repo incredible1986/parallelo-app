@@ -32,22 +32,24 @@ export function Header({ activeTheme, onQuickToggleTheme, totalDays }) {
             >
               PARALLELO
             </h1>
-            <span
-              className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded border"
-              style={{
-                borderColor: activeTheme.borderColor,
-                color: activeTheme.textSecondary,
-                backgroundColor: activeTheme.surfaceContainer,
-              }}
-            >
-              n={totalDays}
-            </span>
+            {totalDays > 0 && (
+              <span
+                className="text-[10px] tabular-nums px-1.5 py-0.5 rounded border"
+                style={{
+                  borderColor: activeTheme.borderColor,
+                  color: activeTheme.textSecondary,
+                  backgroundColor: activeTheme.surfaceContainer,
+                }}
+              >
+                {totalDays} дн.
+              </span>
+            )}
           </div>
           <p
             className="text-[11px] mt-0.5 tracking-tight"
             style={{ color: activeTheme.textSecondary }}
           >
-            Ритмы · Телеметрия · Корреляции
+            Тело, ритмы и самочувствие
           </p>
         </div>
       </div>

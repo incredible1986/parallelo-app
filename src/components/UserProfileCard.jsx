@@ -5,7 +5,7 @@ import { computeHydrationTarget } from '../services/analytics';
 import { IconDownload, IconDrop, IconUpload } from './RitualIcons';
 
 /**
- * Профиль, палитры, формула тела, резервное копирование (JSON) и честный статус системы.
+ * Профиль, темы, ориентиры тела, резервное копирование и статус возможностей.
  */
 export function UserProfileCard({
   activeTheme,
@@ -39,7 +39,7 @@ export function UserProfileCard({
       weight: weight ? String(weight) : '',
       excludeSickFromBaseline: excludeSick,
     });
-    flashNotice('Параметры профиля сохранены.');
+    flashNotice('Настройки профиля сохранены.');
   };
 
   const handleExport = () => {
@@ -51,7 +51,7 @@ export function UserProfileCard({
     a.download = `parallelo-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    flashNotice('Резервная копия JSON скачана.');
+    flashNotice('Резервная копия скачана.');
   };
 
   const handleImportFile = (e) => {
@@ -62,9 +62,9 @@ export function UserProfileCard({
       try {
         const count = StorageService.importBackup(String(ev.target?.result || ''));
         onDataImportedOrReset();
-        flashNotice(`Импортировано записей: ${count}.`);
+        flashNotice(`Загружено записей: ${count}.`);
       } catch (err) {
-        flashNotice(err.message || 'Ошибка чтения JSON.');
+        flashNotice(err.message || 'Не удалось прочитать файл.');
       }
     };
     reader.readAsText(file);
@@ -80,20 +80,17 @@ export function UserProfileCard({
     StorageService.resetAllParalleloData();
     setConfirmReset(false);
     onDataImportedOrReset();
-    flashNotice('Локальное хранилище очищено.');
+    flashNotice('Локальные данные удалены.');
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <span
-          className="text-[10px] font-mono uppercase tracking-widest block"
-          style={{ color: activeTheme.textSecondary }}
-        >
+        <span className="text-xs block" style={{ color: activeTheme.textSecondary }}>
           Настройки и данные
         </span>
         <h2 className="text-lg font-serif font-medium mt-0.5" style={{ color: activeTheme.textPrimary }}>
-          Профиль и калибровка
+          Профиль
         </h2>
       </div>
 
@@ -110,7 +107,7 @@ export function UserProfileCard({
         </div>
       )}
 
-      {/* 1. Визуальная тема */}
+      {/* 1. Оформление */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -118,11 +115,8 @@ export function UserProfileCard({
           borderColor: activeTheme.borderColor,
         }}
       >
-        <span
-          className="text-[10px] font-mono uppercase tracking-widest block"
-          style={{ color: activeTheme.textSecondary }}
-        >
-          Цветовая схема интерфейса
+        <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+          Тема оформления
         </span>
         <div className="grid grid-cols-3 gap-2">
           {Object.values(PALETTES).map((p) => {
@@ -157,7 +151,7 @@ export function UserProfileCard({
         </div>
       </div>
 
-      {/* 2. Основные данные и сезон жизни (единый источник истины) */}
+      {/* 2. Личные ориентиры */}
       <div
         className="p-4 rounded-2xl border space-y-4"
         style={{
@@ -168,7 +162,7 @@ export function UserProfileCard({
         <div>
           <label
             htmlFor="profileNameInput"
-            className="block text-[10px] font-mono uppercase tracking-widest mb-1.5"
+            className="block text-xs font-medium mb-1.5"
             style={{ color: activeTheme.textSecondary }}
           >
             Имя (по желанию)
@@ -189,11 +183,8 @@ export function UserProfileCard({
         </div>
 
         <div>
-          <span
-            className="block text-[10px] font-mono uppercase tracking-widest mb-2"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Сезон жизни (возрастной ориентир)
+          <span className="block text-xs font-medium mb-2" style={{ color: activeTheme.textSecondary }}>
+            Возрастной сезон
           </span>
           <div className="grid grid-cols-2 gap-2">
             {SEASONS.map((s) => {
@@ -214,7 +205,7 @@ export function UserProfileCard({
                       {s.title}
                     </span>
                     <span
-                      className="text-[10px] font-mono tabular-nums"
+                      className="text-[10px] tabular-nums"
                       style={{ color: isPicked ? activeTheme.primary : activeTheme.textMuted }}
                     >
                       {s.age}
@@ -229,26 +220,22 @@ export function UserProfileCard({
           </div>
         </div>
 
-        {/* Ориентиры тела + прозрачная формула воды */}
         <div
           className="pt-3 border-t space-y-2.5"
           style={{ borderColor: activeTheme.borderColor }}
         >
           <div className="flex items-center justify-between">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Параметры тела (для формулы воды)
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Параметры тела
             </span>
             <span className="text-[10px]" style={{ color: activeTheme.textMuted }}>
-              без диет и целей по весу
+              только для расчёта воды
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label htmlFor="heightInput" className="text-[10px] block mb-1" style={{ color: activeTheme.textSecondary }}>
+              <label htmlFor="heightInput" className="text-[11px] block mb-1" style={{ color: activeTheme.textSecondary }}>
                 Рост (см)
               </label>
               <input
@@ -257,7 +244,7 @@ export function UserProfileCard({
                 placeholder="168"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                className="w-full text-xs font-mono tabular-nums p-2 rounded-xl border focus:outline-none"
+                className="w-full text-xs tabular-nums p-2 rounded-xl border focus:outline-none"
                 style={{
                   backgroundColor: activeTheme.surfaceContainer,
                   borderColor: activeTheme.borderColor,
@@ -266,7 +253,7 @@ export function UserProfileCard({
               />
             </div>
             <div>
-              <label htmlFor="weightInput" className="text-[10px] block mb-1" style={{ color: activeTheme.textSecondary }}>
+              <label htmlFor="weightInput" className="text-[11px] block mb-1" style={{ color: activeTheme.textSecondary }}>
                 Вес (кг)
               </label>
               <input
@@ -275,7 +262,7 @@ export function UserProfileCard({
                 placeholder="64"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                className="w-full text-xs font-mono tabular-nums p-2 rounded-xl border focus:outline-none"
+                className="w-full text-xs tabular-nums p-2 rounded-xl border focus:outline-none"
                 style={{
                   backgroundColor: activeTheme.surfaceContainer,
                   borderColor: activeTheme.borderColor,
@@ -295,16 +282,15 @@ export function UserProfileCard({
             >
               <span className="flex items-center gap-1.5" style={{ color: activeTheme.textSecondary }}>
                 <IconDrop className="w-3.5 h-3.5" style={{ color: activeTheme.secondary }} />
-                Базовая норма воды:
+                Ориентир воды:
               </span>
-              <span className="font-mono tabular-nums font-medium" style={{ color: activeTheme.textPrimary }}>
-                {hydrationPreview.baseMl} мл ({weight} × 30)
+              <span className="tabular-nums font-medium" style={{ color: activeTheme.textPrimary }}>
+                {hydrationPreview.totalLiters} л в день
               </span>
             </div>
           )}
         </div>
 
-        {/* Исключение дней болезни */}
         <button
           type="button"
           onClick={() => setExcludeSick(!excludeSick)}
@@ -318,18 +304,18 @@ export function UserProfileCard({
             <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
               Исключать дни болезни из нормы
             </div>
-            <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
-              Рекомендуется, чтобы простуда не смещала σ и тренд
+            <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+              Рекомендуется, чтобы простуда не смещала вашу обычную картину
             </div>
           </div>
           <span
-            className="text-[10px] font-mono px-2 py-0.5 rounded shrink-0"
+            className="text-[11px] font-medium px-2 py-0.5 rounded shrink-0"
             style={{
               backgroundColor: excludeSick ? activeTheme.accent : activeTheme.surfaceCard,
               color: excludeSick ? activeTheme.primaryText : activeTheme.textSecondary,
             }}
           >
-            {excludeSick ? 'ВКЛ' : 'ВЫКЛ'}
+            {excludeSick ? 'Вкл' : 'Выкл'}
           </span>
         </button>
 
@@ -346,7 +332,7 @@ export function UserProfileCard({
         </button>
       </div>
 
-      {/* 3. Резервное копирование данных (защита от очистки браузера) */}
+      {/* 3. Резервное копирование */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -355,14 +341,11 @@ export function UserProfileCard({
         }}
       >
         <div>
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Безопасность данных · Local-First
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Сохранение и перенос данных
           </span>
           <p className="text-xs mt-1 leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-            Все наблюдения хранятся локально на вашем устройстве. Делайте экспорт JSON перед очисткой браузера или переносом на другой смартфон.
+            Все записи хранятся прямо у вас на устройстве. Можно скачать резервную копию в файл, чтобы не потерять историю.
           </p>
         </div>
 
@@ -378,7 +361,7 @@ export function UserProfileCard({
             }}
           >
             <IconDownload className="w-3.5 h-3.5" />
-            Экспорт JSON
+            Скачать копию
           </button>
 
           <button
@@ -392,7 +375,7 @@ export function UserProfileCard({
             }}
           >
             <IconUpload className="w-3.5 h-3.5" />
-            Импорт JSON
+            Загрузить копию
           </button>
           <input
             ref={fileInputRef}
@@ -413,12 +396,12 @@ export function UserProfileCard({
               color: confirmReset ? activeTheme.danger : activeTheme.textMuted,
             }}
           >
-            {confirmReset ? 'Подтвердить полное удаление локальных данных?' : 'Сбросить локальные данные'}
+            {confirmReset ? 'Подтвердить удаление всех записей?' : 'Очистить все записи'}
           </button>
         </div>
       </div>
 
-      {/* 4. Честный статус системных модулей */}
+      {/* 4. Статус возможностей */}
       <div
         className="p-4 rounded-2xl border space-y-2 text-[11px]"
         style={{
@@ -427,24 +410,22 @@ export function UserProfileCard({
           color: activeTheme.textSecondary,
         }}
       >
-        <span className="text-[10px] font-mono uppercase tracking-widest block">
-          Статус модулей v2.0
-        </span>
+        <span className="text-xs font-medium block">Что сейчас работает</span>
         <div className="flex justify-between">
-          <span>Хранилище и офлайн-кэш (SW)</span>
-          <span className="font-mono" style={{ color: activeTheme.accent }}>Активно</span>
+          <span>Офлайн-работа на телефоне</span>
+          <span className="font-medium" style={{ color: activeTheme.accent }}>Готово</span>
         </div>
         <div className="flex justify-between">
-          <span>Математическое ядро (МНК, σ, лаги)</span>
-          <span className="font-mono" style={{ color: activeTheme.accent }}>Активно</span>
+          <span>Анализ ритмов и связей</span>
+          <span className="font-medium" style={{ color: activeTheme.accent }}>Готово</span>
         </div>
         <div className="flex justify-between">
-          <span>Облачная синхронизация (.NET API)</span>
-          <span className="font-mono" style={{ color: activeTheme.textMuted }}>В очереди</span>
+          <span>Облачная синхронизация</span>
+          <span style={{ color: activeTheme.textMuted }}>В следующем обновлении</span>
         </div>
         <div className="flex justify-between">
-          <span>Push-уведомления и Health Connect</span>
-          <span className="font-mono" style={{ color: activeTheme.textMuted }}>Android Wrapper</span>
+          <span>Синхронизация с часами и уведомления</span>
+          <span style={{ color: activeTheme.textMuted }}>В версии для Android</span>
         </div>
       </div>
     </div>

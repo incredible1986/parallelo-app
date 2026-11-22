@@ -1,9 +1,6 @@
 /**
- * 14 вечерних микро-вопросов Parallelo
- * Правила голоса:
- * 1. Спрашиваем о теле и ощущении, а не о KPI.
- * 2. Без «почему», оценок и чувства вины.
- * 3. «Пропустить» и «Не помню» — равноправные ответы.
+ * 14 бережных вечерних микро-вопросов Parallelo
+ * Без нравоучений, оценок и чувства вины.
  */
 export const WEEKLY_QUESTIONS = [
   {
@@ -51,7 +48,7 @@ export const WEEKLY_QUESTIONS = [
   {
     day: 'Чт',
     dayIndex: 4,
-    question: 'Что сегодня было самым тактильным?',
+    question: 'Что сегодня было самым приятным на ощупь?',
     tags: ['Тёплая кружка', 'Бумага / книга', 'Холодная вода'],
     category: 'осязание',
   },
@@ -79,7 +76,7 @@ export const WEEKLY_QUESTIONS = [
   {
     day: 'Сб',
     dayIndex: 6,
-    question: 'Что сегодня дало телу больше всего ресурса?',
+    question: 'Что сегодня дало телу больше всего сил?',
     tags: ['Долгий сон', 'Пар и вода', 'Прогулка'],
     category: 'ресурс',
   },
@@ -93,8 +90,8 @@ export const WEEKLY_QUESTIONS = [
   {
     day: 'Вс',
     dayIndex: 0,
-    question: 'Какое пространство сегодня было только твоим?',
-    tags: ['Тихий угол дома', 'Прогулка одной', 'Постель и книга'],
+    question: 'Какое пространство сегодня было только вашим?',
+    tags: ['Тихий угол дома', 'Прогулка в одиночестве', 'Постель и книга'],
     category: 'пространство',
   },
   {
@@ -109,15 +106,17 @@ export const WEEKLY_QUESTIONS = [
 export const RITUALS_CATALOG = [
   {
     id: 'banya',
+    group: 'anchors',
     title: 'Баня и пар',
     iconKey: 'banya',
     duration: '90 мин',
-    category: 'Терморегуляция',
+    category: 'Тело и пар',
     desc: 'Контраст тепла и холода, веник, глубокое расслабление',
     waterBonusMl: 500,
   },
   {
     id: 'warm_plate',
+    group: 'anchors',
     title: 'Тёплая еда без спешки',
     iconKey: 'bowl',
     duration: '25 мин',
@@ -127,6 +126,7 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'walk',
+    group: 'anchors',
     title: 'Прогулка в тишине',
     iconKey: 'walk',
     duration: '40 мин',
@@ -136,6 +136,7 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'movement',
+    group: 'anchors',
     title: 'Движение и тренировка',
     iconKey: 'movement',
     duration: '20–45 мин',
@@ -145,6 +146,7 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'mindful_shopping',
+    group: 'anchors',
     title: 'Пауза перед покупкой',
     iconKey: 'shopping',
     duration: '24 ч',
@@ -154,6 +156,7 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'tea',
+    group: 'anchors',
     title: 'Чтение и чай',
     iconKey: 'tea',
     duration: '30 мин',
@@ -163,6 +166,7 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'garden',
+    group: 'anchors',
     title: 'Земля и природа',
     iconKey: 'garden',
     duration: '45 мин',
@@ -172,11 +176,42 @@ export const RITUALS_CATALOG = [
   },
   {
     id: 'presence',
-    title: 'Точка присутствия',
+    group: 'anchors',
+    title: 'Момент присутствия',
     iconKey: 'presence',
     duration: '10 мин',
     category: 'Дыхание',
     desc: '10 минут без стимулов: дыхание, тело, возвращение в момент',
     waterBonusMl: 0,
+  },
+  {
+    id: 'intimacy',
+    group: 'body_substances',
+    title: 'Секс и близость',
+    iconKey: 'intimacy',
+    duration: '—',
+    category: 'Близость',
+    desc: 'Телесный контакт, интимность, снятие напряжения',
+    waterBonusMl: 0,
+  },
+  {
+    id: 'alcohol',
+    group: 'body_substances',
+    title: 'Алкоголь',
+    iconKey: 'alcohol',
+    duration: '—',
+    category: 'Вещества',
+    desc: 'Вино, пиво или крепкие напитки — покажет влияние на сон и завтрашний день',
+    waterBonusMl: 300,
+  },
+  {
+    id: 'substances',
+    group: 'body_substances',
+    title: 'Вещества',
+    iconKey: 'substances',
+    duration: '—',
+    category: 'Вещества',
+    desc: 'Психоактивные вещества или сильные стимуляторы — без осуждения, для честной картины',
+    waterBonusMl: 250,
   },
 ];

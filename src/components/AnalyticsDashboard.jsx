@@ -50,7 +50,7 @@ export function AnalyticsDashboard({
   const calendarGrid = useMemo(() => {
     const firstDay = new Date(calYear, calMonth, 1);
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-    const startOffset = (firstDay.getDay() + 6) % 7; // 0 = Пн, 6 = Вс
+    const startOffset = (firstDay.getDay() + 6) % 7;
     const todayKey = getLocalDateKey();
 
     const byDate = new Map(analytics.allSeries.map((s) => [s.date, s]));
@@ -81,7 +81,7 @@ export function AnalyticsDashboard({
     setSelectedCalDay(null);
   };
 
-  // Геометрия основного SVG-графика (Динамика W(t) + МНК + Локальные экстремумы)
+  // Геометрия основного SVG-графика
   const chartW = 340;
   const chartH = 165;
   const padL = 26;
@@ -129,7 +129,7 @@ export function AnalyticsDashboard({
       ? series[series.length - 1]
       : null;
 
-  // Геометрия Scatter-графика Сон(t) -> W(t+1)
+  // Геометрия графика Сон -> Завтра
   const sleepPairs = analytics.sleepPairs;
   const sleepReg = analytics.sleepRegression;
   const scW = 340;
@@ -153,19 +153,27 @@ export function AnalyticsDashboard({
     return activeTheme.danger;
   };
 
+  const describeSleepImpact = () => {
+    if (!sleepReg) return null;
+    if (sleepReg.k >= 1) {
+      return `В среднем каждый дополнительный час сна добавляет +${sleepReg.k} к состоянию на следующий день.`;
+    }
+    if (sleepReg.k <= -1) {
+      return `В этих записях длинный сон чаще совпадал с накопившейся усталостью (${sleepReg.k} на следующий день).`;
+    }
+    return 'Заметной связи между количеством часов сна и следующим днём пока не видно.';
+  };
+
   return (
     <div className="space-y-4">
       {/* Шапка и переключение реальные / демо-выборка */}
       <div className="flex items-end justify-between gap-2">
         <div>
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Математическая модель
+          <span className="text-xs block" style={{ color: activeTheme.textSecondary }}>
+            Личная картина
           </span>
           <h2 className="text-lg font-serif font-medium mt-0.5" style={{ color: activeTheme.textPrimary }}>
-            Корреляции и динамика
+            Ритмы и связи
           </h2>
         </div>
 
@@ -207,19 +215,17 @@ export function AnalyticsDashboard({
         </div>
       </div>
 
-      {/* Индикатор режима демо или калибровки */}
+      {/* Индикатор режима демо или набора данных */}
       {isDemoMode ? (
         <div
-          className="px-3.5 py-2.5 rounded-xl border text-xs flex items-center justify-between gap-2"
+          className="px-3.5 py-2.5 rounded-xl border text-xs"
           style={{
             backgroundColor: activeTheme.surfaceElevated,
             borderColor: activeTheme.primary,
             color: activeTheme.textPrimary,
           }}
         >
-          <span>
-            Предпросмотр расчёта всех формул на тестовой выборке из 21 дня. Ваши личные записи не затронуты.
-          </span>
+          Пример на тестовых данных за 21 день. Ваши личные записи остаются нетронутыми.
         </div>
       ) : (
         realCount < 7 && (
@@ -232,10 +238,10 @@ export function AnalyticsDashboard({
           >
             <div className="flex items-center justify-between">
               <span className="font-medium" style={{ color: activeTheme.textPrimary }}>
-                Калибровка базовой нормы
+                Собираем вашу обычную норму
               </span>
-              <span className="font-mono tabular-nums text-[11px]" style={{ color: activeTheme.primary }}>
-                {realCount} / 7 дней
+              <span className="tabular-nums text-[11px]" style={{ color: activeTheme.primary }}>
+                {realCount} из 7 дней
               </span>
             </div>
             <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeTheme.borderColor }}>
@@ -248,8 +254,8 @@ export function AnalyticsDashboard({
               />
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-              Для расчёта линейной регрессии, σ и устойчивых корреляций нужно от 7 наблюдений.
-              Нажмите <strong style={{ color: activeTheme.textPrimary }}>«Демо 21д»</strong> выше, чтобы увидеть работу всех формул прямо сейчас.
+              Чтобы уверенно находить закономерности, нужно хотя бы 7 отмеченных дней.
+              Нажмите <strong style={{ color: activeTheme.textPrimary }}>«Демо 21д»</strong> выше, чтобы посмотреть, как будут выглядеть ваши графики.
             </p>
           </div>
         )
@@ -267,21 +273,21 @@ export function AnalyticsDashboard({
           }}
         >
           <span style={{ color: activeTheme.textSecondary }}>
-            Исключить дни болезни из базовой нормы ({analytics.sickDaysCount} дн.)
+            Не учитывать дни болезни в общей норме ({analytics.sickDaysCount} дн.)
           </span>
           <span
-            className="font-mono text-[10px] px-2 py-0.5 rounded"
+            className="text-[11px] font-medium px-2 py-0.5 rounded"
             style={{
               backgroundColor: excludeSick ? activeTheme.accent : activeTheme.surfaceContainer,
               color: excludeSick ? activeTheme.primaryText : activeTheme.textSecondary,
             }}
           >
-            {excludeSick ? 'ВКЛ' : 'ВЫКЛ'}
+            {excludeSick ? 'Включено' : 'Выключено'}
           </span>
         </button>
       )}
 
-      {/* БЛОК 1: График динамики W(t) + МНК регрессия + Локальные экстремумы */}
+      {/* БЛОК 1: График динамики состояния */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -291,32 +297,23 @@ export function AnalyticsDashboard({
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest block"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Динамика индекса W(t) · МНК тренд
+            <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+              Динамика состояния
             </span>
-            {reg ? (
-              <div className="text-xs font-mono tabular-nums mt-1" style={{ color: activeTheme.primary }}>
-                y = {reg.a} {reg.k >= 0 ? '+' : '−'} {Math.abs(reg.k)}·t · R² = {reg.r2}
-              </div>
-            ) : (
-              <div className="text-xs mt-1" style={{ color: activeTheme.textSecondary }}>
-                Нужно минимум 2 дня для построения линии тренда
-              </div>
-            )}
+            <div className="text-xs mt-0.5" style={{ color: activeTheme.primary }}>
+              {analytics.trendLabel}
+            </div>
           </div>
           {reg && (
             <span
-              className="text-[10px] font-mono tabular-nums px-2 py-0.5 rounded border shrink-0"
+              className="text-[11px] tabular-nums px-2 py-0.5 rounded border shrink-0"
               style={{
                 borderColor: activeTheme.borderColor,
                 backgroundColor: activeTheme.surfaceContainer,
                 color: reg.k >= 0 ? activeTheme.accent : activeTheme.danger,
               }}
             >
-              {reg.k >= 0 ? `+${reg.k}` : reg.k} / день
+              {reg.k >= 0 ? `+${reg.k}` : reg.k} в день
             </span>
           )}
         </div>
@@ -324,7 +321,6 @@ export function AnalyticsDashboard({
         {series.length >= 2 ? (
           <>
             <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto overflow-visible">
-              {/* Горизонтальная сетка */}
               {[0, 25, 50, 75, 100].map((val) => {
                 const y = yFor(val);
                 return (
@@ -342,7 +338,7 @@ export function AnalyticsDashboard({
                       y={y + 3}
                       textAnchor="end"
                       fontSize="8.5"
-                      fontFamily="JetBrains Mono, monospace"
+                      fontFamily="Inter, sans-serif"
                       fill={activeTheme.textMuted}
                     >
                       {val}
@@ -351,7 +347,7 @@ export function AnalyticsDashboard({
                 );
               })}
 
-              {/* 7-дневная скользящая средняя */}
+              {/* Плавная линия ритма */}
               <path
                 d={maPath}
                 fill="none"
@@ -361,7 +357,7 @@ export function AnalyticsDashboard({
                 strokeDasharray="3 3"
               />
 
-              {/* Линия линейной регрессии МНК y = a + k·t */}
+              {/* Общий тренд */}
               {regLine && (
                 <line
                   x1={regLine.x1}
@@ -374,7 +370,7 @@ export function AnalyticsDashboard({
                 />
               )}
 
-              {/* Основная кривая индекса W(t) */}
+              {/* Основная линия по дням */}
               <path
                 d={linePath}
                 fill="none"
@@ -384,7 +380,7 @@ export function AnalyticsDashboard({
                 strokeLinecap="round"
               />
 
-              {/* Точки и маркеры локальных максимумов/минимумов */}
+              {/* Точки и пики/спады */}
               {series.map((pt, i) => {
                 const cx = xFor(i);
                 const cy = yFor(pt.index);
@@ -417,7 +413,6 @@ export function AnalyticsDashboard({
                 );
               })}
 
-              {/* Подписи дат по краям и середине */}
               {[0, Math.floor((series.length - 1) / 2), series.length - 1]
                 .filter((v, i, arr) => arr.indexOf(v) === i)
                 .map((idx) => (
@@ -427,7 +422,7 @@ export function AnalyticsDashboard({
                     y={chartH - 4}
                     textAnchor={idx === 0 ? 'start' : idx === series.length - 1 ? 'end' : 'middle'}
                     fontSize="8.5"
-                    fontFamily="JetBrains Mono, monospace"
+                    fontFamily="Inter, sans-serif"
                     fill={activeTheme.textMuted}
                   >
                     {formatShortRuDate(series[idx].date)}
@@ -435,27 +430,25 @@ export function AnalyticsDashboard({
                 ))}
             </svg>
 
-            {/* Легенда графика */}
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: activeTheme.textSecondary }}>
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-0.5 inline-block" style={{ backgroundColor: activeTheme.textPrimary }} />
-                W(t)
+                По дням
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-0.5 inline-block border-t border-dashed" style={{ borderColor: activeTheme.primary }} />
-                МНК тренд
+                Общий тренд
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: activeTheme.accent }} />
-                Лок. max
+                Пики
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: activeTheme.danger }} />
-                Лок. min
+                Спады
               </span>
             </div>
 
-            {/* Детали выбранной точки */}
             {activePoint && (
               <div
                 className="p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs"
@@ -465,8 +458,9 @@ export function AnalyticsDashboard({
                 }}
               >
                 <div className="min-w-0">
-                  <div className="font-mono tabular-nums text-[11px]" style={{ color: activeTheme.textPrimary }}>
-                    {formatShortRuDate(activePoint.date)} · W={activePoint.index} · Сон {Number(activePoint.sleepHours).toFixed(1)}ч
+                  <div className="tabular-nums text-[11px] font-medium" style={{ color: activeTheme.textPrimary }}>
+                    {formatShortRuDate(activePoint.date)} · Состояние {activePoint.index} · Сон{' '}
+                    {Number(activePoint.sleepHours).toFixed(1)} ч
                   </div>
                   <div className="text-[11px] truncate" style={{ color: activeTheme.textSecondary }}>
                     {(activePoint.rituals || []).length > 0
@@ -478,7 +472,7 @@ export function AnalyticsDashboard({
                   <button
                     type="button"
                     onClick={() => onSelectDateToEdit(activePoint.date)}
-                    className="text-[10px] font-mono px-2 py-1 rounded border shrink-0"
+                    className="text-[11px] px-2 py-1 rounded border shrink-0"
                     style={{
                       borderColor: activeTheme.borderColor,
                       color: activeTheme.primary,
@@ -498,14 +492,13 @@ export function AnalyticsDashboard({
               color: activeTheme.textSecondary,
             }}
           >
-            Сохраните минимум 2 дня наблюдений для построения графика и МНК-тренда.
+            Сохраните минимум 2 дня наблюдений, чтобы появился график.
           </div>
         )}
       </div>
 
-      {/* БЛОК 2: Математический профиль (СКО σ, Средние отклонения Δ+/Δ-, Экстремумы, Разнообразие) */}
+      {/* БЛОК 2: Основные ориентиры ритма (человеческим языком) */}
       <div className="grid grid-cols-2 gap-2.5">
-        {/* 1. Средняя норма и СКО (Standard Deviation) */}
         <div
           className="p-3.5 rounded-2xl border space-y-1"
           style={{
@@ -513,24 +506,22 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span className="text-[10px] font-mono uppercase tracking-wider block" style={{ color: activeTheme.textSecondary }}>
-            Норма μ / СКО σ
+          <span className="text-[11px] block" style={{ color: activeTheme.textSecondary }}>
+            Среднее состояние
           </span>
-          <div className="flex items-baseline gap-1.5 font-mono tabular-nums">
+          <div className="flex items-baseline gap-1.5 tabular-nums">
             <span className="text-xl font-semibold" style={{ color: activeTheme.textPrimary }}>
               {analytics.mean ?? '—'}
             </span>
-            <span className="text-xs" style={{ color: activeTheme.primary }}>
-              ± {analytics.stdDev ?? '—'}
+            <span className="text-xs" style={{ color: activeTheme.textMuted }}>
+              из 100
             </span>
           </div>
-          <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
+          <div className="text-[11px]" style={{ color: activeTheme.primary }}>
             {analytics.stabilityLabel}
-            {analytics.cv !== null ? ` · CV ${analytics.cv}%` : ''}
           </div>
         </div>
 
-        {/* 2. Средние положительных и отрицательных отклонений от нормы */}
         <div
           className="p-3.5 rounded-2xl border space-y-1"
           style={{
@@ -538,10 +529,10 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span className="text-[10px] font-mono uppercase tracking-wider block" style={{ color: activeTheme.textSecondary }}>
-            Подъём / Просадка
+          <span className="text-[11px] block" style={{ color: activeTheme.textSecondary }}>
+            Подъёмы и спады
           </span>
-          <div className="flex items-baseline gap-2 font-mono tabular-nums">
+          <div className="flex items-baseline gap-2 tabular-nums">
             <span className="text-base font-semibold" style={{ color: activeTheme.accent }}>
               +{analytics.signedDeviations.meanPositive}
             </span>
@@ -550,12 +541,11 @@ export function AnalyticsDashboard({
               {analytics.signedDeviations.meanNegative}
             </span>
           </div>
-          <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
-            Среднее Δ+ ({analytics.signedDeviations.posCount}д) и Δ− ({analytics.signedDeviations.negCount}д)
+          <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+            в хорошие и трудные дни
           </div>
         </div>
 
-        {/* 3. Локальные экстремумы: max(localMin) и min(localMax) */}
         <div
           className="p-3.5 rounded-2xl border space-y-1"
           style={{
@@ -563,24 +553,23 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span className="text-[10px] font-mono uppercase tracking-wider block" style={{ color: activeTheme.textSecondary }}>
-            Коридор разворота
+          <span className="text-[11px] block" style={{ color: activeTheme.textSecondary }}>
+            Рабочий коридор
           </span>
-          <div className="flex items-baseline gap-2 font-mono tabular-nums">
+          <div className="flex items-baseline gap-2 tabular-nums">
             <span className="text-base font-semibold" style={{ color: activeTheme.textPrimary }}>
               {analytics.extrema.maxOfLocalMinima ? analytics.extrema.maxOfLocalMinima.index : '—'}
             </span>
-            <span className="text-[10px]" style={{ color: activeTheme.textMuted }}>↔</span>
+            <span className="text-xs" style={{ color: activeTheme.textMuted }}>—</span>
             <span className="text-base font-semibold" style={{ color: activeTheme.textPrimary }}>
               {analytics.extrema.minOfLocalMaxima ? analytics.extrema.minOfLocalMaxima.index : '—'}
             </span>
           </div>
-          <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
-            max(лок.min) · min(лок.max)
+          <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+            обычные границы ритма
           </div>
         </div>
 
-        {/* 4. Разнообразие уникальных факторов (Distinct Elements) */}
         <div
           className="p-3.5 rounded-2xl border space-y-1"
           style={{
@@ -588,24 +577,24 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span className="text-[10px] font-mono uppercase tracking-wider block" style={{ color: activeTheme.textSecondary }}>
-            Разнообразие опор
+          <span className="text-[11px] block" style={{ color: activeTheme.textSecondary }}>
+            Разнообразие дней
           </span>
-          <div className="flex items-baseline gap-1.5 font-mono tabular-nums">
+          <div className="flex items-baseline gap-1.5 tabular-nums">
             <span className="text-xl font-semibold" style={{ color: activeTheme.textPrimary }}>
               {analytics.diversity.distinctRituals}
             </span>
             <span className="text-xs" style={{ color: activeTheme.textMuted }}>
-              / {analytics.diversity.catalogLength}
+              из {analytics.diversity.catalogLength}
             </span>
           </div>
-          <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
-            Уникальных факторов · {analytics.diversity.distinctColors} оттенка
+          <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+            факторов уже отмечено
           </div>
         </div>
       </div>
 
-      {/* БЛОК 3: Максимальный скачок и резкий спад между соседними днями */}
+      {/* БЛОК 3: Самые заметные перемены за сутки */}
       {(analytics.adjacent.maxJump || analytics.adjacent.maxDrop) && (
         <div
           className="p-4 rounded-2xl border space-y-2.5"
@@ -614,11 +603,8 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Соседние переходы · max / min (Wₜ − Wₜ₋₁)
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Самые заметные перемены за сутки
           </span>
 
           <div className="grid grid-cols-1 gap-2">
@@ -631,12 +617,12 @@ export function AnalyticsDashboard({
                 }}
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span style={{ color: activeTheme.textPrimary }}>Максимальный скачок вверх</span>
-                  <span className="font-mono tabular-nums font-semibold" style={{ color: activeTheme.accent }}>
-                    +{analytics.adjacent.maxJump.delta} п.
+                  <span style={{ color: activeTheme.textPrimary }}>Лучшее восстановление</span>
+                  <span className="tabular-nums font-semibold" style={{ color: activeTheme.accent }}>
+                    +{analytics.adjacent.maxJump.delta}
                   </span>
                 </div>
-                <div className="text-[11px] font-mono tabular-nums" style={{ color: activeTheme.textSecondary }}>
+                <div className="text-[11px] tabular-nums" style={{ color: activeTheme.textSecondary }}>
                   {formatShortRuDate(analytics.adjacent.maxJump.fromDate)} ({analytics.adjacent.maxJump.fromIndex}) →{' '}
                   {formatShortRuDate(analytics.adjacent.maxJump.toDate)} ({analytics.adjacent.maxJump.toIndex})
                 </div>
@@ -657,12 +643,12 @@ export function AnalyticsDashboard({
                 }}
               >
                 <div className="flex items-center justify-between text-xs">
-                  <span style={{ color: activeTheme.textPrimary }}>Наибольший спад за сутки</span>
-                  <span className="font-mono tabular-nums font-semibold" style={{ color: activeTheme.danger }}>
-                    {analytics.adjacent.maxDrop.delta} п.
+                  <span style={{ color: activeTheme.textPrimary }}>Самый сильный спад</span>
+                  <span className="tabular-nums font-semibold" style={{ color: activeTheme.danger }}>
+                    {analytics.adjacent.maxDrop.delta}
                   </span>
                 </div>
-                <div className="text-[11px] font-mono tabular-nums" style={{ color: activeTheme.textSecondary }}>
+                <div className="text-[11px] tabular-nums" style={{ color: activeTheme.textSecondary }}>
                   {formatShortRuDate(analytics.adjacent.maxDrop.fromDate)} ({analytics.adjacent.maxDrop.fromIndex}) →{' '}
                   {formatShortRuDate(analytics.adjacent.maxDrop.toDate)} ({analytics.adjacent.maxDrop.toIndex})
                 </div>
@@ -677,7 +663,7 @@ export function AnalyticsDashboard({
         </div>
       )}
 
-      {/* БЛОК 4: Регрессия Сон(t) -> Индекс на следующий день W(t+1) */}
+      {/* БЛОК 4: Как сон влияет на завтра */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -685,24 +671,15 @@ export function AnalyticsDashboard({
           borderColor: activeTheme.borderColor,
         }}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest block"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Регрессия: Сон(t) → Ресурс(t+1)
-            </span>
-            {sleepReg ? (
-              <div className="text-xs font-mono tabular-nums mt-1" style={{ color: activeTheme.accent }}>
-                r = {sleepReg.r} · R² = {sleepReg.r2} · {formatSigned(sleepReg.k)} п./час сна
-              </div>
-            ) : (
-              <div className="text-xs mt-1" style={{ color: activeTheme.textSecondary }}>
-                Нужно от 3 пар последовательных дней (n={sleepPairs.length})
-              </div>
-            )}
-          </div>
+        <div>
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Как сон влияет на завтрашний день
+          </span>
+          {!sleepReg && (
+            <div className="text-xs mt-1" style={{ color: activeTheme.textMuted }}>
+              Появится после 3 дней наблюдений подряд
+            </div>
+          )}
         </div>
 
         {sleepReg && sleepPairs.length >= 3 && (
@@ -723,7 +700,7 @@ export function AnalyticsDashboard({
                     y={syFor(v) + 3}
                     textAnchor="end"
                     fontSize="8.5"
-                    fontFamily="JetBrains Mono, monospace"
+                    fontFamily="Inter, sans-serif"
                     fill={activeTheme.textMuted}
                   >
                     {v}
@@ -738,14 +715,13 @@ export function AnalyticsDashboard({
                   y={scH - 5}
                   textAnchor="middle"
                   fontSize="8.5"
-                  fontFamily="JetBrains Mono, monospace"
+                  fontFamily="Inter, sans-serif"
                   fill={activeTheme.textMuted}
                 >
-                  {h}ч
+                  {h} ч
                 </text>
               ))}
 
-              {/* Линия МНК y = a + k·sleep */}
               <line
                 x1={sxFor(minSleep)}
                 y1={syFor(sleepReg.predict(minSleep))}
@@ -756,7 +732,6 @@ export function AnalyticsDashboard({
                 strokeDasharray="4 3"
               />
 
-              {/* Точки (Сон_t, W_{t+1}) */}
               {sleepPairs.map((p, idx) => (
                 <circle
                   key={idx}
@@ -768,17 +743,14 @@ export function AnalyticsDashboard({
                 />
               ))}
             </svg>
-            <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-              Линейная аппроксимация (n={sleepPairs.length} пар): каждый дополнительный час сна связан с изменением индекса следующего дня на{' '}
-              <span className="font-mono font-semibold" style={{ color: activeTheme.textPrimary }}>
-                {formatSigned(sleepReg.k)} п.
-              </span>
+            <p className="text-xs leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+              {describeSleepImpact()}
             </p>
           </>
         )}
       </div>
 
-      {/* БЛОК 5: Матрица влияния факторов (Δ₀ в день фактора и Δ₊₁ лаг на следующий день) */}
+      {/* БЛОК 5: Что наполняет, а что забирает силы */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -786,21 +758,18 @@ export function AnalyticsDashboard({
           borderColor: activeTheme.borderColor,
         }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-end justify-between gap-2">
           <div>
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest block"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Матрица факторов · Лаг-анализ
-            </span>
-            <h3 className="text-sm font-serif font-medium mt-0.5" style={{ color: activeTheme.textPrimary }}>
-              Влияние якорей на состояние
+            <h3 className="text-sm font-serif font-medium" style={{ color: activeTheme.textPrimary }}>
+              Что наполняет, а что забирает силы
             </h3>
+            <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textSecondary }}>
+              Разница состояния в дни с событием и без него
+            </p>
           </div>
-          <div className="flex gap-3 text-[10px] font-mono" style={{ color: activeTheme.textMuted }}>
-            <span>Δ₀ (день)</span>
-            <span>Δ₊₁ (завтра)</span>
+          <div className="flex gap-3 text-[10px] shrink-0" style={{ color: activeTheme.textMuted }}>
+            <span>В тот день</span>
+            <span>На завтра</span>
           </div>
         </div>
 
@@ -824,6 +793,13 @@ export function AnalyticsDashboard({
                 ? activeTheme.danger
                 : activeTheme.textSecondary;
 
+            const subtitle =
+              f.count === 0
+                ? 'пока не отмечалось'
+                : f.isReliable
+                ? `${f.count} раз`
+                : `${f.count} раз · пока мало записей`;
+
             return (
               <div
                 key={f.id}
@@ -839,16 +815,14 @@ export function AnalyticsDashboard({
                     <div className="text-xs font-medium truncate" style={{ color: activeTheme.textPrimary }}>
                       {f.title}
                     </div>
-                    <div className="text-[10px] font-mono tabular-nums" style={{ color: activeTheme.textMuted }}>
-                      n={f.count}
-                      {f.lagCorrelation !== null ? ` · r=${f.lagCorrelation}` : ''}
-                      {!f.isReliable && f.count > 0 ? ' · мало данных' : ''}
+                    <div className="text-[11px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                      {subtitle}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 font-mono tabular-nums text-xs shrink-0">
-                  <span className="w-11 text-right" style={{ color: d0Color }}>
+                <div className="flex items-center gap-3 tabular-nums text-xs shrink-0">
+                  <span className="w-12 text-right" style={{ color: d0Color }}>
                     {formatSigned(f.sameDayDelta)}
                   </span>
                   <span className="w-12 text-right font-semibold" style={{ color: d1Color }}>
@@ -861,7 +835,7 @@ export function AnalyticsDashboard({
         </div>
       </div>
 
-      {/* БЛОК 6: Динамическая тепловая карта месяца (без захардкоженных дат) */}
+      {/* БЛОК 6: Календарь месяца */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -870,17 +844,14 @@ export function AnalyticsDashboard({
         }}
       >
         <div className="flex items-center justify-between">
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Тепловая карта · {getMonthTitleRu(calYear, calMonth)}
+          <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+            Календарь · {getMonthTitleRu(calYear, calMonth)}
           </span>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => shiftCalendarMonth(-1)}
-              className="w-6 h-6 rounded border text-[11px] font-mono"
+              className="w-6 h-6 rounded border text-[11px]"
               style={{ borderColor: activeTheme.borderColor, color: activeTheme.textSecondary }}
             >
               ←
@@ -888,7 +859,7 @@ export function AnalyticsDashboard({
             <button
               type="button"
               onClick={() => shiftCalendarMonth(1)}
-              className="w-6 h-6 rounded border text-[11px] font-mono"
+              className="w-6 h-6 rounded border text-[11px]"
               style={{ borderColor: activeTheme.borderColor, color: activeTheme.textSecondary }}
             >
               →
@@ -896,7 +867,7 @@ export function AnalyticsDashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-mono" style={{ color: activeTheme.textMuted }}>
+        <div className="grid grid-cols-7 gap-1 text-center text-[10px]" style={{ color: activeTheme.textMuted }}>
           {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
             <div key={d}>{d}</div>
           ))}
@@ -923,7 +894,7 @@ export function AnalyticsDashboard({
                 }}
               >
                 <span
-                  className="text-[10px] font-mono tabular-nums font-medium leading-none"
+                  className="text-[10px] tabular-nums font-medium leading-none"
                   style={{
                     color: hasRec ? '#FFFFFF' : activeTheme.textSecondary,
                   }}
@@ -931,7 +902,7 @@ export function AnalyticsDashboard({
                   {cell.day}
                 </span>
                 {hasRec && (
-                  <span className="text-[8px] font-mono tabular-nums text-white/85 leading-none mt-0.5">
+                  <span className="text-[8px] tabular-nums text-white/85 leading-none mt-0.5">
                     {cell.record.index}
                   </span>
                 )}
@@ -956,22 +927,22 @@ export function AnalyticsDashboard({
             }}
           >
             <div>
-              <span className="font-mono font-medium" style={{ color: activeTheme.textPrimary }}>
+              <span className="font-medium" style={{ color: activeTheme.textPrimary }}>
                 {formatShortRuDate(selectedCalDay.dateKey)}:
               </span>{' '}
               <span style={{ color: activeTheme.textSecondary }}>
                 {selectedCalDay.record
-                  ? `W=${selectedCalDay.record.index} · сон ${selectedCalDay.record.sleepHours}ч${
+                  ? `состояние ${selectedCalDay.record.index} · сон ${selectedCalDay.record.sleepHours} ч${
                       selectedCalDay.record.wellbeing === 'sick' ? ' · восстановление' : ''
                     }`
-                  : 'Нет записи'}
+                  : 'нет записи'}
               </span>
             </div>
             {!isDemoMode && !selectedCalDay.isFuture && (
               <button
                 type="button"
                 onClick={() => onSelectDateToEdit(selectedCalDay.dateKey)}
-                className="text-[10px] font-mono px-2 py-1 rounded border shrink-0"
+                className="text-[11px] px-2 py-1 rounded border shrink-0"
                 style={{ borderColor: activeTheme.borderColor, color: activeTheme.primary }}
               >
                 {selectedCalDay.record ? 'Изменить' : 'Заполнить'}

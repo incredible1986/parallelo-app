@@ -25,13 +25,15 @@ export function DailyCheckin({
     [dayOfWeek]
   );
   const [questionIdx, setQuestionIdx] = useState(0);
-  const activeQuestion = todayQuestions[questionIdx % Math.max(1, todayQuestions.length)] || WEEKLY_QUESTIONS[0];
+  const activeQuestion =
+    todayQuestions[questionIdx % Math.max(1, todayQuestions.length)] || WEEKLY_QUESTIONS[0];
 
   const [isCocoonOpen, setIsCocoonOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
   const liveIndex = computeDayIndex(dayRecord);
-  const deltaFromMean = baselineMean !== null ? Math.round((liveIndex - baselineMean) * 10) / 10 : null;
+  const deltaFromMean =
+    baselineMean !== null ? Math.round((liveIndex - baselineMean) * 10) / 10 : null;
   const hydration = computeHydrationTarget(profile?.weight, dayRecord);
 
   const selectedColorObj =
@@ -58,12 +60,12 @@ export function DailyCheckin({
     const patch = { wellbeing: mode };
     if (mode === 'sick') {
       patch.colorId = 'stone';
-      flashStatus('Режим восстановления активен. День исключён из базовой нормы.');
+      flashStatus('Режим восстановления включён. Этот день не испортит вашу обычную норму.');
     } else if (mode === 'tired') {
       patch.colorId = 'stone';
-      flashStatus('Отмечена усталость. Вечер без завышенных ожиданий.');
+      flashStatus('Усталость отмечена. Вечер без завышенных ожиданий.');
     } else {
-      flashStatus('Режим дня: в ресурсе.');
+      flashStatus('Состояние отмечено как обычное.');
     }
     patchDay(patch, true);
   };
@@ -78,12 +80,12 @@ export function DailyCheckin({
 
   const handleSaveExplicit = () => {
     patchDay({ isSaved: true }, true);
-    flashStatus(`Наблюдение за ${formatFullRuDate(selectedDate)} сохранено.`);
+    flashStatus(`Сохранено за ${formatFullRuDate(selectedDate)}.`);
   };
 
   const displayQuestion =
     dayRecord.wellbeing === 'sick'
-      ? 'Что прямо сейчас снизит нагрузку и поможет восстановлению?'
+      ? 'Что прямо сейчас снизит нагрузку и поможет телу восстановиться?'
       : activeQuestion.question;
 
   const displayTags =
@@ -94,27 +96,24 @@ export function DailyCheckin({
   const sliders = [
     {
       key: 'energy',
-      label: 'Энергия / ресурс',
-      code: 'E',
+      label: 'Энергия',
       value: dayRecord.energy,
-      low: 'Истощение',
-      high: 'Полный ресурс',
+      low: 'Нет сил',
+      high: 'Много сил',
     },
     {
       key: 'calm',
-      label: 'Внутренний покой',
-      code: 'C',
+      label: 'Спокойствие',
       value: dayRecord.calm,
       low: 'Напряжение',
-      high: 'Тишина',
+      high: 'Тишина внутри',
     },
     {
       key: 'bodyComfort',
-      label: 'Телесный комфорт',
-      code: 'B',
+      label: 'Комфорт в теле',
       value: dayRecord.bodyComfort,
-      low: 'Зажимы / тяжесть',
-      high: 'Лёгкость в теле',
+      low: 'Тяжесть / зажимы',
+      high: 'Лёгкость',
     },
   ];
 
@@ -122,7 +121,7 @@ export function DailyCheckin({
     <div className="space-y-4">
       <WelcomeBanner activeTheme={activeTheme} />
 
-      {/* 1. Навигация по дате (реальные календарные дни) */}
+      {/* 1. Навигация по дате */}
       <div
         className="px-3.5 py-2.5 rounded-2xl border flex items-center justify-between"
         style={{
@@ -133,7 +132,7 @@ export function DailyCheckin({
         <button
           type="button"
           onClick={() => shiftDate(-1)}
-          className="w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-mono transition-colors hover:opacity-80"
+          className="w-8 h-8 rounded-lg border flex items-center justify-center text-xs transition-colors hover:opacity-80"
           style={{
             borderColor: activeTheme.borderColor,
             backgroundColor: activeTheme.surfaceContainer,
@@ -148,9 +147,9 @@ export function DailyCheckin({
           <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
             {formatFullRuDate(selectedDate)}
           </div>
-          <div className="text-[10px] font-mono tabular-nums" style={{ color: activeTheme.textSecondary }}>
-            {isToday ? 'Текущий день' : 'Архивная запись'} ·{' '}
-            {dayRecord.isSaved ? 'зафиксировано' : 'черновик'}
+          <div className="text-[11px] tabular-nums" style={{ color: activeTheme.textSecondary }}>
+            {isToday ? 'Сегодня' : 'Прошлый день'} ·{' '}
+            {dayRecord.isSaved ? 'сохранено' : 'черновик'}
           </div>
         </div>
 
@@ -158,7 +157,7 @@ export function DailyCheckin({
           type="button"
           onClick={() => shiftDate(1)}
           disabled={isToday}
-          className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-mono transition-colors ${
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs transition-colors ${
             isToday ? 'opacity-25 cursor-not-allowed' : 'hover:opacity-80'
           }`}
           style={{
@@ -172,7 +171,7 @@ export function DailyCheckin({
         </button>
       </div>
 
-      {/* 2. Живой индекс состояния W(t) + расчёт воды */}
+      {/* 2. Общее состояние дня + вода */}
       <div
         className="p-4 rounded-2xl border"
         style={{
@@ -183,24 +182,24 @@ export function DailyCheckin({
         <div className="flex items-start justify-between gap-3">
           <div>
             <span
-              className="text-[10px] font-mono uppercase tracking-widest block"
+              className="text-xs font-medium block"
               style={{ color: activeTheme.textSecondary }}
             >
-              Композитный индекс дня W
+              Общее состояние
             </span>
             <div className="flex items-baseline gap-2.5 mt-1">
               <span
-                className="text-4xl font-mono font-semibold tabular-nums leading-none"
+                className="text-4xl font-semibold tabular-nums leading-none"
                 style={{ color: activeTheme.primary }}
               >
                 {liveIndex}
               </span>
-              <span className="text-xs font-mono" style={{ color: activeTheme.textMuted }}>
-                / 100
+              <span className="text-xs" style={{ color: activeTheme.textMuted }}>
+                из 100
               </span>
               {deltaFromMean !== null && (
                 <span
-                  className="text-xs font-mono tabular-nums px-1.5 py-0.5 rounded"
+                  className="text-xs tabular-nums px-2 py-0.5 rounded-lg"
                   style={{
                     backgroundColor: activeTheme.surfaceContainer,
                     color:
@@ -211,53 +210,50 @@ export function DailyCheckin({
                         : activeTheme.textSecondary,
                   }}
                 >
-                  {deltaFromMean > 0 ? `+${deltaFromMean}` : deltaFromMean} к норме
+                  {deltaFromMean > 0
+                    ? `+${deltaFromMean} к вашей норме`
+                    : deltaFromMean < 0
+                    ? `${deltaFromMean} от вашей нормы`
+                    : 'на уровне нормы'}
                 </span>
               )}
-            </div>
-            <div
-              className="text-[10px] font-mono tabular-nums mt-2"
-              style={{ color: activeTheme.textMuted }}
-            >
-              W = 10·(0.32·E + 0.28·C + 0.25·B + 0.15·2Q)
             </div>
           </div>
 
           {dayRecord.wellbeing === 'sick' && (
             <span
-              className="text-[10px] font-mono px-2 py-1 rounded-lg border shrink-0"
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg border shrink-0"
               style={{
                 borderColor: activeTheme.accent,
                 color: activeTheme.accent,
                 backgroundColor: activeTheme.surfaceContainer,
               }}
             >
-              RECOVERY
+              Восстановление
             </span>
           )}
         </div>
 
-        {/* Прозрачная формула воды, если указан вес */}
         {hydration && (
           <div
-            className="mt-3 pt-3 border-t flex items-center justify-between text-[11px]"
+            className="mt-3 pt-3 border-t flex items-center justify-between gap-2 text-[11px]"
             style={{ borderColor: activeTheme.borderColor }}
           >
             <div className="flex items-center gap-1.5" style={{ color: activeTheme.textSecondary }}>
-              <IconDrop className="w-3.5 h-3.5" style={{ color: activeTheme.secondary }} />
-              <span>Ориентир воды:</span>
-              <span className="font-mono tabular-nums font-medium" style={{ color: activeTheme.textPrimary }}>
-                {hydration.totalMl} мл
+              <IconDrop className="w-3.5 h-3.5 shrink-0" style={{ color: activeTheme.secondary }} />
+              <span>Вода на сегодня:</span>
+              <span className="tabular-nums font-medium" style={{ color: activeTheme.textPrimary }}>
+                {hydration.totalLiters} л
               </span>
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: activeTheme.textMuted }}>
-              {hydration.formulaText}
+            <span className="text-[11px] text-right" style={{ color: activeTheme.textMuted }}>
+              {hydration.noteText}
             </span>
           </div>
         )}
       </div>
 
-      {/* 3. Числовые оси состояния (вход для корреляций и МНК) */}
+      {/* 3. Оценка самочувствия и сна */}
       <div
         className="p-4 rounded-2xl border space-y-4"
         style={{
@@ -266,37 +262,19 @@ export function DailyCheckin({
         }}
       >
         <div className="flex items-center justify-between">
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Вектор состояния
+          <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+            Как вы сегодня
           </span>
-          <span className="text-[10px] font-mono" style={{ color: activeTheme.textMuted }}>
-            шкала 1–10
+          <span className="text-[11px]" style={{ color: activeTheme.textMuted }}>
+            от 1 до 10
           </span>
         </div>
 
         {sliders.map((s) => (
           <div key={s.key} className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-5 h-5 rounded font-mono text-[10px] flex items-center justify-center border"
-                  style={{
-                    borderColor: activeTheme.borderColor,
-                    backgroundColor: activeTheme.surfaceContainer,
-                    color: activeTheme.textSecondary,
-                  }}
-                >
-                  {s.code}
-                </span>
-                <span style={{ color: activeTheme.textPrimary }}>{s.label}</span>
-              </div>
-              <span
-                className="font-mono tabular-nums font-semibold"
-                style={{ color: activeTheme.primary }}
-              >
+              <span style={{ color: activeTheme.textPrimary }}>{s.label}</span>
+              <span className="tabular-nums font-semibold" style={{ color: activeTheme.primary }}>
                 {s.value}
               </span>
             </div>
@@ -323,29 +301,14 @@ export function DailyCheckin({
           </div>
         ))}
 
-        {/* Сон: длительность + субъективное качество Q */}
+        {/* Сон */}
         <div
           className="pt-3.5 border-t space-y-3"
           style={{ borderColor: activeTheme.borderColor }}
         >
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span
-                className="w-5 h-5 rounded font-mono text-[10px] flex items-center justify-center border"
-                style={{
-                  borderColor: activeTheme.borderColor,
-                  backgroundColor: activeTheme.surfaceContainer,
-                  color: activeTheme.textSecondary,
-                }}
-              >
-                S
-              </span>
-              <span style={{ color: activeTheme.textPrimary }}>Длительность сна</span>
-            </div>
-            <span
-              className="font-mono tabular-nums font-semibold"
-              style={{ color: activeTheme.accent }}
-            >
+            <span style={{ color: activeTheme.textPrimary }}>Сколько спали</span>
+            <span className="tabular-nums font-semibold" style={{ color: activeTheme.accent }}>
               {Number(dayRecord.sleepHours).toFixed(1)} ч
             </span>
           </div>
@@ -366,8 +329,8 @@ export function DailyCheckin({
           />
 
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
-              Глубина сна (Q)
+            <span className="text-xs" style={{ color: activeTheme.textSecondary }}>
+              Качество сна
             </span>
             <div className="flex gap-1.5">
               {[1, 2, 3, 4, 5].map((q) => {
@@ -377,7 +340,7 @@ export function DailyCheckin({
                     key={q}
                     type="button"
                     onClick={() => patchDay({ sleepQuality: q }, true)}
-                    className="w-7 h-7 rounded-lg border text-xs font-mono tabular-nums transition-colors"
+                    className="w-7 h-7 rounded-lg border text-xs tabular-nums transition-colors"
                     style={{
                       backgroundColor: isSel ? activeTheme.accent : activeTheme.surfaceContainer,
                       borderColor: isSel ? activeTheme.accent : activeTheme.borderColor,
@@ -393,7 +356,7 @@ export function DailyCheckin({
         </div>
       </div>
 
-      {/* 4. Статус тела и режим восстановления */}
+      {/* 4. Самочувствие тела и симптомы */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -402,11 +365,8 @@ export function DailyCheckin({
         }}
       >
         <div className="flex items-center justify-between">
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Физиологический режим
+          <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+            Самочувствие тела
           </span>
           <IconShield className="w-3.5 h-3.5" style={{ color: activeTheme.textMuted }} />
         </div>
@@ -415,7 +375,7 @@ export function DailyCheckin({
           {[
             { id: 'in_flow', label: 'В норме' },
             { id: 'tired', label: 'Усталость' },
-            { id: 'sick', label: 'Болезнь' },
+            { id: 'sick', label: 'Приболела' },
           ].map((item) => {
             const isSel = dayRecord.wellbeing === item.id;
             return (
@@ -446,8 +406,7 @@ export function DailyCheckin({
             style={{ borderColor: activeTheme.borderColor }}
           >
             <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-              Режим восстановления активен: день маркируется отдельно и может быть исключён из базовой
-              нормы в аналитике, чтобы болезнь не искажала тренд.
+              Этот день не будет портить вашу обычную статистику — просто отметьте симптомы, если хочется.
             </p>
             <div className="flex flex-wrap gap-1.5">
               {SYMPTOMS_LIST.map((sym) => {
@@ -473,7 +432,7 @@ export function DailyCheckin({
         )}
       </div>
 
-      {/* 5. Оттенок состояния + Вечерний микро-вопрос */}
+      {/* 5. Настроение и вечерний вопрос */}
       <div
         className="p-4 rounded-2xl border space-y-4"
         style={{
@@ -483,11 +442,8 @@ export function DailyCheckin({
       >
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Тон состояния
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Оттенок дня
             </span>
             <span className="text-xs font-medium" style={{ color: selectedColorObj.hex }}>
               {selectedColorObj.name}
@@ -520,10 +476,7 @@ export function DailyCheckin({
 
         <div className="pt-3 border-t space-y-3" style={{ borderColor: activeTheme.borderColor }}>
           <div className="flex items-center justify-between">
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest"
-              style={{ color: activeTheme.textSecondary }}
-            >
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
               Вопрос вечера · {activeQuestion.day}
             </span>
             {todayQuestions.length > 1 && dayRecord.wellbeing !== 'sick' && (
@@ -595,7 +548,7 @@ export function DailyCheckin({
         </div>
       </div>
 
-      {/* 6. Маркер присутствия и практика «Сбросить кокон» */}
+      {/* 6. Момент присутствия и «Сбросить кокон» */}
       <div className="grid grid-cols-1 gap-2.5">
         <button
           type="button"
@@ -619,20 +572,18 @@ export function DailyCheckin({
             </span>
             <div>
               <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-                Точка живого присутствия
+                Момент, когда чувствовалась жизнь
               </div>
               <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
-                {dayRecord.feltAlive
-                  ? 'Зафиксировано в дне'
-                  : 'Отметить момент полной включённости'}
+                {dayRecord.feltAlive ? 'Было сегодня' : 'Отметить, если такой момент был'}
               </div>
             </div>
           </div>
           <span
-            className="text-[10px] font-mono uppercase"
+            className="text-xs font-medium"
             style={{ color: dayRecord.feltAlive ? activeTheme.accent : activeTheme.textMuted }}
           >
-            {dayRecord.feltAlive ? 'ДА' : 'НЕТ'}
+            {dayRecord.feltAlive ? 'Отмечено' : 'Отметить'}
           </span>
         </button>
 
@@ -665,13 +616,13 @@ export function DailyCheckin({
               </div>
             </div>
           </div>
-          <span className="text-xs font-mono" style={{ color: activeTheme.textSecondary }}>
+          <span className="text-xs" style={{ color: activeTheme.textSecondary }}>
             →
           </span>
         </button>
       </div>
 
-      {/* 7. Заметка и кнопка фиксации */}
+      {/* 7. Заметка */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -681,17 +632,17 @@ export function DailyCheckin({
       >
         <label
           htmlFor="sensoryNote"
-          className="block text-[10px] font-mono uppercase tracking-widest"
+          className="block text-xs font-medium"
           style={{ color: activeTheme.textSecondary }}
         >
-          Контекст и заметка (необязательно)
+          Заметка о дне (по желанию)
         </label>
         <textarea
           id="sensoryNote"
           rows={2}
           value={dayRecord.note || ''}
           onChange={(e) => patchDay({ note: e.target.value }, false)}
-          placeholder="Ключевое событие дня, телесное наблюдение, причина спада или подъёма..."
+          placeholder="Что запомнилось, от чего стало легче или тяжелее..."
           className="w-full text-xs p-2.5 rounded-xl border focus:outline-none resize-none"
           style={{
             backgroundColor: activeTheme.surfaceContainer,

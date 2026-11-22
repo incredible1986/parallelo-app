@@ -91,6 +91,28 @@ export const IconMovement = ({ className = 'w-5 h-5', ...props }) => (
   </svg>
 );
 
+export const IconIntimacy = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <circle cx="9.5" cy="12" r="5" />
+    <circle cx="14.5" cy="12" r="5" />
+  </svg>
+);
+
+export const IconAlcohol = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <path d="M8 3h8l-1 6.5a3.5 3.5 0 0 1-6 0L8 3Z" />
+    <path d="M12 13v7" />
+    <path d="M8.5 20h7" />
+  </svg>
+);
+
+export const IconSubstances = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <rect x="7" y="4" width="10" height="16" rx="5" transform="rotate(35 12 12)" />
+    <path d="M8.5 9.5l7 5" />
+  </svg>
+);
+
 /* Системные и навигационные иконки (без эмодзи) */
 export const IconPulse = ({ className = 'w-5 h-5', ...props }) => (
   <svg {...baseProps} className={className} {...props}>
@@ -189,4 +211,7 @@ export const RITUAL_ICONS = {
   bowl: IconBowl,
   shopping: IconShopping,
   movement: IconMovement,
+  intimacy: IconIntimacy,
+  alcohol: IconAlcohol,
+  substances: IconSubstances,
 };

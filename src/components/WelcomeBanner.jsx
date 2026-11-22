@@ -33,25 +33,25 @@ export function WelcomeBanner({ activeTheme }) {
       </button>
 
       <div
-        className="text-[10px] font-mono uppercase tracking-widest mb-1.5"
+        className="text-[11px] font-medium mb-1"
         style={{ color: activeTheme.primary }}
       >
-        Принцип работы · без стриков и штрафов
+        Без стриков, оценок и чувства вины
       </div>
 
       <h2
         className="text-sm font-serif font-medium leading-snug pr-6 mb-2"
         style={{ color: activeTheme.textPrimary }}
       >
-        Личная модель состояния на основе реальных наблюдений
+        Честные наблюдения за своим состоянием
       </h2>
 
       <p
         className="text-xs leading-relaxed mb-3"
         style={{ color: activeTheme.textSecondary }}
       >
-        Фиксируйте 4 числовых показателя и факторы дня. Parallelo считает индекс ресурса,
-        среднеквадратическое отклонение, линейный тренд и отложенное влияние ритуалов на следующий день.
+        Отмечайте самочувствие, сон и события дня — Parallelo сам заметит, что даёт вам силы,
+        а что их забирает.
       </p>
 
       <div
@@ -59,22 +59,22 @@ export function WelcomeBanner({ activeTheme }) {
         style={{ borderColor: activeTheme.borderColor }}
       >
         <div>
-          <span className="font-mono text-[10px] block" style={{ color: activeTheme.primary }}>
-            01 / Ввод
+          <span className="font-medium block" style={{ color: activeTheme.primary }}>
+            1. День
           </span>
-          <span style={{ color: activeTheme.textSecondary }}>4 шкалы и сон за 15 сек</span>
+          <span style={{ color: activeTheme.textSecondary }}>Самочувствие и сон за 15 сек</span>
         </div>
         <div>
-          <span className="font-mono text-[10px] block" style={{ color: activeTheme.primary }}>
-            02 / Факторы
+          <span className="font-medium block" style={{ color: activeTheme.primary }}>
+            2. Факторы
           </span>
-          <span style={{ color: activeTheme.textSecondary }}>Баня, движение, паузы</span>
+          <span style={{ color: activeTheme.textSecondary }}>Привычки, близость, алкоголь</span>
         </div>
         <div>
-          <span className="font-mono text-[10px] block" style={{ color: activeTheme.primary }}>
-            03 / Модель
+          <span className="font-medium block" style={{ color: activeTheme.primary }}>
+            3. Связи
           </span>
-          <span style={{ color: activeTheme.textSecondary }}>МНК, σ, лаг t → t+1</span>
+          <span style={{ color: activeTheme.textSecondary }}>Что меняет ваше завтра</span>
         </div>
       </div>
     </div>

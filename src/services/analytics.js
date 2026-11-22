@@ -338,18 +338,25 @@ export function computeHydrationTarget(weightKg, record) {
   const rituals = record?.rituals || [];
   const bonuses = [];
 
-  if (rituals.includes('banya')) bonuses.push({ label: 'Баня и пар', ml: 500 });
-  if (rituals.includes('movement')) bonuses.push({ label: 'Движение', ml: 350 });
-  if (rituals.includes('walk')) bonuses.push({ label: 'Прогулка', ml: 150 });
-  if (record?.wellbeing === 'sick') bonuses.push({ label: 'Восстановление', ml: 250 });
+  if (rituals.includes('banya')) bonuses.push({ label: 'бани', ml: 500 });
+  if (rituals.includes('movement')) bonuses.push({ label: 'тренировки', ml: 350 });
+  if (rituals.includes('alcohol')) bonuses.push({ label: 'алкоголя', ml: 300 });
+  if (rituals.includes('substances')) bonuses.push({ label: 'веществ', ml: 250 });
+  if (rituals.includes('walk')) bonuses.push({ label: 'прогулки', ml: 150 });
+  if (record?.wellbeing === 'sick') bonuses.push({ label: 'восстановления', ml: 250 });
 
   const totalBonus = bonuses.reduce((sum, b) => sum + b.ml, 0);
+  const totalMl = base + totalBonus;
   return {
     baseMl: base,
     bonusMl: totalBonus,
-    totalMl: base + totalBonus,
+    totalMl,
+    totalLiters: round(totalMl / 1000, 1),
     bonuses,
-    formulaText: `${w} кг × 30 мл${totalBonus > 0 ? ` + ${totalBonus} мл` : ''}`,
+    noteText:
+      bonuses.length > 0
+        ? `с учётом ${bonuses.map((b) => b.label).join(' и ')}`
+        : 'базовый ориентир на день',
   };
 }
 
@@ -404,11 +411,18 @@ export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true }
   const diversity = computeDistinctDiversity(allSorted, catalog.length);
   const factorImpacts = computeFactorImpacts(activeSeries, catalog);
 
-  let stabilityLabel = 'Сбор базовой линии';
+  let stabilityLabel = 'Собираем наблюдения';
   if (stdDev !== null) {
-    if (stdDev < 8) stabilityLabel = 'Устойчивый ритм';
-    else if (stdDev <= 14) stabilityLabel = 'Умеренная амплитуда';
-    else stabilityLabel = 'Высокая волатильность';
+    if (stdDev < 8) stabilityLabel = 'Ровный ритм';
+    else if (stdDev <= 14) stabilityLabel = 'Умеренные перепады';
+    else stabilityLabel = 'Заметные качели';
+  }
+
+  let trendLabel = 'Нужно больше дней для оценки';
+  if (trendRegression) {
+    if (trendRegression.k >= 0.25) trendLabel = 'Состояние постепенно растёт';
+    else if (trendRegression.k <= -0.25) trendLabel = 'Постепенно накапливается усталость';
+    else trendLabel = 'Ритм держится ровно';
   }
 
   return {
@@ -421,6 +435,7 @@ export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true }
     stdDev,
     cv,
     stabilityLabel,
+    trendLabel,
     trendRegression,
     sleepRegression,
     sleepPairs,
@@ -434,34 +449,34 @@ export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true }
 }
 
 /**
- * Генератор 21-дневной реалистичной выборки ДЛЯ ПРЕДПРОСМОТРА ФОРМУЛ.
+ * Генератор 21-дневной реалистичной выборки для предпросмотра графиков.
  * Никогда не записывается в localStorage пользователя.
  */
 export function generateDemoDataset21Days() {
   const today = new Date();
   const demo = {};
 
-  // Детерминированный 21-дневный сценарий с реальными паттернами (баня -> подъём на след. день, недосып -> спад, 2 дня простуды)
+  // Детерминированный 21-дневный сценарий: баня и близость дают подъём, алкоголь и недосып снижают ресурс, 2 дня простуды
   const template = [
-    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', r: ['warm_plate', 'tea'], col: 'sage' },
+    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', r: ['warm_plate', 'tea', 'alcohol'], col: 'sage' },
     { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['warm_plate'], col: 'stone' },
     { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['walk', 'tea', 'presence'], col: 'azure' },
     { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate'], col: 'amber' },
-    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea'], col: 'amber' },
+    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
     { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence'], col: 'amber' },
     { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate'], col: 'sage' },
-    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping'], col: 'indigo' },
+    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'alcohol'], col: 'indigo' },
     { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea'], col: 'stone' },
     { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
     { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
     { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', r: ['walk', 'warm_plate'], col: 'sage' },
-    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['banya', 'tea'], col: 'azure' },
+    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['banya', 'tea', 'intimacy'], col: 'azure' },
     { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['presence', 'tea'], col: 'azure' },
-    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping'], col: 'indigo' },
+    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping', 'alcohol'], col: 'indigo' },
     { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk'], col: 'stone' },
     { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence'], col: 'sage' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate'], col: 'amber' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber' },
     { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea'], col: 'amber' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];

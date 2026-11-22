@@ -30,7 +30,6 @@ export function RitualLogger({
 
   const activeRituals = dayRecord.rituals || [];
 
-  // Реальные счётчики каждого фактора по всей истории записей
   const historyCounts = useMemo(() => {
     const counts = {};
     Object.values(allRecords || {}).forEach((rec) => {
@@ -65,8 +64,8 @@ export function RitualLogger({
     onUpdateDay(selectedDate, { rituals: nextRituals, isSaved: true });
     showNotice(
       exists
-        ? `Фактор «${ritual.title}» снят с записи дня.`
-        : `Фактор «${ritual.title}» учтён в модели дня.`
+        ? `«${ritual.title}» убрано из дня.`
+        : `«${ritual.title}» отмечено за этот день.`
     );
   };
 
@@ -80,7 +79,7 @@ export function RitualLogger({
       workouts: nextWorkouts,
       isSaved: true,
     });
-    showNotice(`Зафиксировано: ${workoutEntry.type} (${workoutEntry.duration} мин, ${workoutEntry.enjoyment}/10).`);
+    showNotice(`Записано: ${workoutEntry.type} (${workoutEntry.duration} мин, ${workoutEntry.enjoyment}/10).`);
   };
 
   const handleAddShoppingPause = (pauseObj) => {
@@ -106,32 +105,97 @@ export function RitualLogger({
     onUpdatePauses(next);
   };
 
+  const anchorRituals = RITUALS_CATALOG.filter((r) => r.group === 'anchors');
+  const bodySubstancesRituals = RITUALS_CATALOG.filter((r) => r.group === 'body_substances');
+
   const activeWaitingPauses = (shoppingPauses || []).filter((p) => p.status === 'waiting');
   const skippedCount = (shoppingPauses || []).filter((p) => p.status === 'skipped').length;
 
+  const renderRitualButton = (ritual) => {
+    const isDone = activeRituals.includes(ritual.id);
+    const IconComponent = RITUAL_ICONS[ritual.iconKey] || RITUAL_ICONS.presence;
+    const totalCount = historyCounts[ritual.id] || 0;
+
+    return (
+      <button
+        key={ritual.id}
+        type="button"
+        onClick={() => handleToggleRitual(ritual)}
+        className="w-full p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-left transition-colors"
+        style={{
+          backgroundColor: isDone ? activeTheme.surfaceElevated : activeTheme.surfaceCard,
+          borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+        }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors"
+            style={{
+              backgroundColor: isDone ? activeTheme.primary : activeTheme.surfaceContainer,
+              borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+              color: isDone ? activeTheme.primaryText : activeTheme.textSecondary,
+            }}
+          >
+            <IconComponent className="w-5 h-5" isPulsing={isDone && ritual.iconKey === 'presence'} />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                {ritual.title}
+              </span>
+              {totalCount > 0 && (
+                <span
+                  className="text-[10px] tabular-nums px-1.5 py-0.5 rounded"
+                  style={{
+                    backgroundColor: activeTheme.surfaceContainer,
+                    color: activeTheme.textSecondary,
+                  }}
+                >
+                  {totalCount} раз
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] mt-0.5 leading-snug" style={{ color: activeTheme.textSecondary }}>
+              {ritual.desc}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
+          style={{
+            backgroundColor: isDone ? activeTheme.primary : 'transparent',
+            borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+            color: activeTheme.primaryText,
+          }}
+        >
+          {isDone && <IconCheck className="w-3.5 h-3.5" />}
+        </div>
+      </button>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-end justify-between">
         <div>
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Факторы дня · {formatFullRuDate(selectedDate)}
+          <span className="text-xs block" style={{ color: activeTheme.textSecondary }}>
+            {formatFullRuDate(selectedDate)}
           </span>
           <h2 className="text-lg font-serif font-medium mt-0.5" style={{ color: activeTheme.textPrimary }}>
-            Переменные и якоря
+            События и факторы дня
           </h2>
         </div>
         <span
-          className="text-xs font-mono tabular-nums px-2 py-0.5 rounded-lg border"
+          className="text-xs tabular-nums px-2 py-0.5 rounded-lg border"
           style={{
             backgroundColor: activeTheme.surfaceCard,
             borderColor: activeTheme.borderColor,
             color: activeTheme.primary,
           }}
         >
-          {activeRituals.length} / {RITUALS_CATALOG.length}
+          {activeRituals.length} отмечено
         </span>
       </div>
 
@@ -148,78 +212,25 @@ export function RitualLogger({
         </div>
       )}
 
-      {/* Каталог факторов */}
+      {/* Группа 1: Опоры и привычки */}
       <div className="space-y-2">
-        {RITUALS_CATALOG.map((ritual) => {
-          const isDone = activeRituals.includes(ritual.id);
-          const IconComponent = RITUAL_ICONS[ritual.iconKey] || RITUAL_ICONS.presence;
-          const totalCount = historyCounts[ritual.id] || 0;
+        <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+          Опоры и привычки
+        </span>
+        <div className="space-y-2">{anchorRituals.map(renderRitualButton)}</div>
+      </div>
 
-          return (
-            <button
-              key={ritual.id}
-              type="button"
-              onClick={() => handleToggleRitual(ritual)}
-              className="w-full p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-left transition-colors"
-              style={{
-                backgroundColor: isDone ? activeTheme.surfaceElevated : activeTheme.surfaceCard,
-                borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors"
-                  style={{
-                    backgroundColor: isDone ? activeTheme.primary : activeTheme.surfaceContainer,
-                    borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-                    color: isDone ? activeTheme.primaryText : activeTheme.textSecondary,
-                  }}
-                >
-                  <IconComponent className="w-5 h-5" isPulsing={isDone && ritual.iconKey === 'presence'} />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-                      {ritual.title}
-                    </span>
-                    <span
-                      className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded"
-                      style={{
-                        backgroundColor: activeTheme.surfaceContainer,
-                        color: activeTheme.textSecondary,
-                      }}
-                    >
-                      n={totalCount}
-                    </span>
-                    {ritual.waterBonusMl > 0 && (
-                      <span
-                        className="text-[10px] font-mono tabular-nums"
-                        style={{ color: activeTheme.secondary }}
-                      >
-                        +{ritual.waterBonusMl}мл
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] mt-0.5 truncate" style={{ color: activeTheme.textSecondary }}>
-                    {ritual.desc}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
-                style={{
-                  backgroundColor: isDone ? activeTheme.primary : 'transparent',
-                  borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-                  color: activeTheme.primaryText,
-                }}
-              >
-                {isDone && <IconCheck className="w-3.5 h-3.5" />}
-              </div>
-            </button>
-          );
-        })}
+      {/* Группа 2: Близость и вещества */}
+      <div className="space-y-2">
+        <div>
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Близость и вещества
+          </span>
+          <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
+            Без оценок и стыда — эти факторы сильно влияют на сон и состояние на следующий день.
+          </p>
+        </div>
+        <div className="space-y-2">{bodySubstancesRituals.map(renderRitualButton)}</div>
       </div>
 
       {/* Зафиксированные тренировки за выбранный день */}
@@ -231,10 +242,7 @@ export function RitualLogger({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span
-            className="text-[10px] font-mono uppercase tracking-widest block"
-            style={{ color: activeTheme.textSecondary }}
-          >
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
             Движение за этот день
           </span>
           {dayRecord.workouts.map((w, idx) => (
@@ -254,7 +262,7 @@ export function RitualLogger({
                   {w.feeling}
                 </div>
               </div>
-              <div className="text-right font-mono tabular-nums text-[11px]">
+              <div className="text-right tabular-nums text-[11px]">
                 <div style={{ color: activeTheme.primary }}>{w.duration} мин</div>
                 <div style={{ color: activeTheme.textSecondary }}>{w.enjoyment}/10</div>
               </div>
@@ -263,7 +271,7 @@ export function RitualLogger({
         </div>
       )}
 
-      {/* Активная очередь 24-часовых пауз перед покупкой */}
+      {/* Очередь 24-часовых пауз перед покупкой */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -274,23 +282,20 @@ export function RitualLogger({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconClock className="w-4 h-4" style={{ color: activeTheme.accent }} />
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Очередь пауз 24 ч
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Отложенные покупки (24 ч)
             </span>
           </div>
           {skippedCount > 0 && (
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: activeTheme.accent }}>
-              отменено импульсов: {skippedCount}
+            <span className="text-[11px] tabular-nums" style={{ color: activeTheme.accent }}>
+              не куплено: {skippedCount}
             </span>
           )}
         </div>
 
         {activeWaitingPauses.length === 0 ? (
           <p className="text-xs" style={{ color: activeTheme.textSecondary }}>
-            Нет отложенных покупок. Нажмите «Пауза перед покупкой» выше, чтобы добавить позицию на 24-часовую проверку.
+            Пока пусто. Нажмите «Пауза перед покупкой» выше, если сомневаетесь перед оплатой.
           </p>
         ) : (
           <div className="space-y-2">
@@ -310,7 +315,7 @@ export function RitualLogger({
                       {p.item}
                     </span>
                     <span
-                      className="text-[10px] font-mono tabular-nums shrink-0"
+                      className="text-[11px] tabular-nums shrink-0"
                       style={{ color: timer.ready ? activeTheme.primary : activeTheme.textSecondary }}
                     >
                       {timer.text}
@@ -352,7 +357,7 @@ export function RitualLogger({
         )}
       </div>
 
-      {/* Честная биометрия: ручной ввод пульса покоя вместо фейкового «Подключено» */}
+      {/* Пульс покоя */}
       <div
         className="p-4 rounded-2xl border space-y-2.5"
         style={{
@@ -363,27 +368,24 @@ export function RitualLogger({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconPulse className="w-4 h-4" style={{ color: activeTheme.secondary }} />
-            <span
-              className="text-[10px] font-mono uppercase tracking-widest"
-              style={{ color: activeTheme.textSecondary }}
-            >
-              Биометрия (ручной ввод)
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Пульс покоя
             </span>
           </div>
           <span
-            className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
+            className="text-[11px] px-2 py-0.5 rounded border"
             style={{
               borderColor: activeTheme.borderColor,
               color: activeTheme.textMuted,
             }}
           >
-            PWA · без Health Connect
+            Вручную
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-3">
           <label htmlFor="restingHrInput" className="text-xs" style={{ color: activeTheme.textSecondary }}>
-            Пульс покоя (уд/мин)
+            Ударов в минуту (с часов)
           </label>
           <input
             id="restingHrInput"
@@ -398,7 +400,7 @@ export function RitualLogger({
                 isSaved: true,
               })
             }
-            className="w-24 text-right font-mono tabular-nums text-xs px-2.5 py-1.5 rounded-lg border focus:outline-none"
+            className="w-24 text-right tabular-nums text-xs px-2.5 py-1.5 rounded-lg border focus:outline-none"
             style={{
               backgroundColor: activeTheme.surfaceContainer,
               borderColor: activeTheme.borderColor,
@@ -407,7 +409,7 @@ export function RitualLogger({
           />
         </div>
         <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textMuted }}>
-          Браузерные PWA не имеют прямого доступа к Google Health Connect. Автоматическое чтение сна и пульса с Realme появится в нативной Android-обёртке (Capacitor).
+          Пока приложение работает в браузере, данные с часов вводятся вручную. Прямое чтение из Google Health Connect появится в версии для Android.
         </p>
       </div>
 
