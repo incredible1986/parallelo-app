@@ -1,142 +1,200 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PALETTES } from './data/brandingTokens';
-import { StorageService } from './services/storage';
+import { RITUALS_CATALOG } from './data/questionsData';
+import {
+  StorageService,
+  getLocalDateKey,
+  createEmptyDayRecord,
+} from './services/storage';
+import { computeFullAnalytics } from './services/analytics';
 import { Header } from './components/Header';
-import { ThemeSelector } from './components/ThemeSelector';
 import { DailyCheckin } from './components/DailyCheckin';
 import { RitualLogger } from './components/RitualLogger';
-import { SundayReflection } from './components/SundayReflection';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { UserProfileCard } from './components/UserProfileCard';
+import {
+  IconChart,
+  IconPulse,
+  IconSliders,
+  IconUser,
+} from './components/RitualIcons';
+
+// Разовая безопасная миграция v1 -> v2 (без очистки хранилища)
+StorageService.migrateFromV1IfNeeded();
 
 export default function App() {
-  // Автоматический сброс всех демо-заглушек для чистого старта тестирования с 21.11
-  const CLEAN_KEY = 'parallelo_clean_start_21_11_prod';
-  if (!StorageService.get(CLEAN_KEY, false)) {
-    localStorage.clear();
-    StorageService.set(CLEAN_KEY, true);
-  }
-
-  const [activeTheme, setActiveTheme] = useState(() => {
-    const savedId = StorageService.get('parallelo_theme_id', 'azure_spring');
-    return PALETTES[savedId] || PALETTES.azure_spring;
-  });
+  const [profile, setProfile] = useState(() => StorageService.getProfile());
+  const [allRecords, setAllRecords] = useState(() => StorageService.getAllRecords());
+  const [shoppingPauses, setShoppingPauses] = useState(() => StorageService.getShoppingPauses());
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey());
   const [activeTab, setActiveTab] = useState('today');
 
-  const handleSelectTheme = (theme) => {
-    setActiveTheme(theme);
-    StorageService.set('parallelo_theme_id', theme.id);
+  const activeTheme = PALETTES[profile.themeId] || PALETTES.obsidian;
+
+  // Синхронизируем цвет статус-бара PWA и фон body с выбранной темой
+  useEffect(() => {
+    document.body.style.backgroundColor = activeTheme.surface;
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', activeTheme.surface);
+    }
+  }, [activeTheme]);
+
+  const currentDayRecord = useMemo(() => {
+    const existing = allRecords[selectedDate];
+    return existing
+      ? { ...createEmptyDayRecord(selectedDate), ...existing }
+      : createEmptyDayRecord(selectedDate);
+  }, [allRecords, selectedDate]);
+
+  const analyticsSummary = useMemo(
+    () =>
+      computeFullAnalytics(allRecords, RITUALS_CATALOG, {
+        excludeSick: profile.excludeSickFromBaseline ?? true,
+      }),
+    [allRecords, profile.excludeSickFromBaseline]
+  );
+
+  const handleUpdateDay = (dateKey, patch) => {
+    StorageService.saveDayRecord(dateKey, patch);
+    setAllRecords(StorageService.getAllRecords());
   };
+
+  const handleUpdateProfile = (patch) => {
+    const next = StorageService.saveProfile(patch);
+    setProfile(next);
+  };
+
+  const handleSelectTheme = (themeObj) => {
+    handleUpdateProfile({ themeId: themeObj.id });
+  };
+
+  const handleQuickToggleTheme = () => {
+    const nextId = activeTheme.isDark ? 'limestone' : 'obsidian';
+    handleUpdateProfile({ themeId: nextId });
+  };
+
+  const handleUpdatePauses = (nextPauses) => {
+    StorageService.saveShoppingPauses(nextPauses);
+    setShoppingPauses(nextPauses);
+  };
+
+  const handleRefreshFromStorage = () => {
+    setProfile(StorageService.getProfile());
+    setAllRecords(StorageService.getAllRecords());
+    setShoppingPauses(StorageService.getShoppingPauses());
+  };
+
+  const handleJumpToDate = (dateKey) => {
+    setSelectedDate(dateKey);
+    setActiveTab('today');
+  };
+
+  const navItems = [
+    { id: 'today', label: 'Сегодня', Icon: IconPulse },
+    { id: 'factors', label: 'Факторы', Icon: IconSliders },
+    { id: 'analytics', label: 'Аналитика', Icon: IconChart },
+    { id: 'profile', label: 'Профиль', Icon: IconUser },
+  ];
 
   return (
     <div
-      className="min-h-screen transition-colors duration-500 flex flex-col items-center justify-start py-0 md:py-8 font-sans selection:bg-amber-200"
-      style={{ backgroundColor: activeTheme.surface }}
+      className="min-h-screen transition-colors duration-300 flex flex-col items-center font-sans"
+      style={{
+        backgroundColor: activeTheme.surface,
+        color: activeTheme.textPrimary,
+      }}
     >
-      {/* Мобильный контейнер-смартфон (390-440px) */}
       <div
-        className="w-full max-w-md min-h-screen md:min-h-[844px] flex flex-col justify-between rounded-none md:rounded-[44px] shadow-none md:shadow-2xl border-0 md:border md:border-black/5 overflow-hidden transition-all duration-500 relative"
-        style={{
-          backgroundColor: activeTheme.surface,
-          borderColor: activeTheme.borderColor,
-        }}
+        className="w-full max-w-md min-h-screen flex flex-col relative"
+        style={{ backgroundColor: activeTheme.surface }}
       >
-        {/* Верхняя часть: Шапка и Переключатель 3 палитр */}
-        <div>
-          <Header activeTheme={activeTheme} />
-          
-          <div className="px-5 pt-3 pb-2 flex justify-center">
-            <ThemeSelector
+        <Header
+          activeTheme={activeTheme}
+          onQuickToggleTheme={handleQuickToggleTheme}
+          totalDays={analyticsSummary.totalDays}
+        />
+
+        <main className="flex-1 px-4 py-4 pb-24">
+          {activeTab === 'today' && (
+            <DailyCheckin
+              activeTheme={activeTheme}
+              selectedDate={selectedDate}
+              onChangeDate={setSelectedDate}
+              dayRecord={currentDayRecord}
+              onUpdateDay={handleUpdateDay}
+              profile={profile}
+              baselineMean={analyticsSummary.mean}
+            />
+          )}
+
+          {activeTab === 'factors' && (
+            <RitualLogger
+              activeTheme={activeTheme}
+              selectedDate={selectedDate}
+              dayRecord={currentDayRecord}
+              allRecords={allRecords}
+              onUpdateDay={handleUpdateDay}
+              shoppingPauses={shoppingPauses}
+              onUpdatePauses={handleUpdatePauses}
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsDashboard
+              activeTheme={activeTheme}
+              allRecords={allRecords}
+              profile={profile}
+              onToggleExcludeSick={() =>
+                handleUpdateProfile({
+                  excludeSickFromBaseline: !(profile.excludeSickFromBaseline ?? true),
+                })
+              }
+              onSelectDateToEdit={handleJumpToDate}
+            />
+          )}
+
+          {activeTab === 'profile' && (
+            <UserProfileCard
               activeTheme={activeTheme}
               onSelectTheme={handleSelectTheme}
+              profile={profile}
+              onUpdateProfile={handleUpdateProfile}
+              onDataImportedOrReset={handleRefreshFromStorage}
             />
-          </div>
-        </div>
-
-        {/* Основной скроллящийся контент экрана */}
-        <main className="flex-1 px-5 py-4 overflow-y-auto pb-24">
-          {activeTab === 'today' && (
-            <DailyCheckin activeTheme={activeTheme} />
-          )}
-
-          {activeTab === 'rituals' && (
-            <RitualLogger activeTheme={activeTheme} />
-          )}
-
-          {activeTab === 'reflection' && (
-            <SundayReflection activeTheme={activeTheme} />
           )}
         </main>
 
-        {/* Нижний плавающий таб-бар (3 вкладки по спецификации Stitch) */}
+        {/* Фиксированная нижняя навигация с учётом safe-area на смартфонах */}
         <nav
-          className="absolute bottom-4 left-5 right-5 h-16 rounded-3xl backdrop-blur-xl border flex items-center justify-around px-2 shadow-lg transition-all duration-300 z-50"
+          className="fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl"
           style={{
-            backgroundColor: `${activeTheme.surfaceCard}EE`,
+            backgroundColor: `${activeTheme.surfaceCard}F2`,
             borderColor: activeTheme.borderColor,
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          {/* Вкладка 1: Сегодня */}
-          <button
-            onClick={() => setActiveTab('today')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 w-20 py-1.5 rounded-2xl ${
-              activeTab === 'today' ? 'scale-105' : 'opacity-60 hover:opacity-100'
-            }`}
-            style={{ color: activeTab === 'today' ? activeTheme.primary : activeTheme.textSecondary }}
-          >
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
-              style={{
-                backgroundColor: activeTab === 'today' ? activeTheme.surfaceContainer : 'transparent',
-              }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="5" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-medium tracking-tight">Сегодня</span>
-          </button>
-
-          {/* Вкладка 2: Якоря */}
-          <button
-            onClick={() => setActiveTab('rituals')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 w-20 py-1.5 rounded-2xl ${
-              activeTab === 'rituals' ? 'scale-105' : 'opacity-60 hover:opacity-100'
-            }`}
-            style={{ color: activeTab === 'rituals' ? activeTheme.primary : activeTheme.textSecondary }}
-          >
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
-              style={{
-                backgroundColor: activeTab === 'rituals' ? activeTheme.surfaceContainer : 'transparent',
-              }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c6.4 3.6 6.4 10.9 0 16C5.6 13.9 5.6 6.6 12 3Z" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-medium tracking-tight">Якоря</span>
-          </button>
-
-          {/* Вкладка 3: Зеркало */}
-          <button
-            onClick={() => setActiveTab('reflection')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 w-20 py-1.5 rounded-2xl ${
-              activeTab === 'reflection' ? 'scale-105' : 'opacity-60 hover:opacity-100'
-            }`}
-            style={{ color: activeTab === 'reflection' ? activeTheme.primary : activeTheme.textSecondary }}
-          >
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
-              style={{
-                backgroundColor: activeTab === 'reflection' ? activeTheme.surfaceContainer : 'transparent',
-              }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-medium tracking-tight">Зеркало</span>
-          </button>
+          <div className="max-w-md mx-auto grid grid-cols-4 h-16 px-2">
+            {navItems.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className="flex flex-col items-center justify-center gap-1 transition-colors"
+                  style={{
+                    color: isActive ? activeTheme.primary : activeTheme.textSecondary,
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className={`text-[10px] tracking-tight ${isActive ? 'font-semibold' : 'font-normal'}`}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </div>

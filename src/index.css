@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,23 +13,76 @@
 body {
   margin: 0;
   padding: 0;
-  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Пульс присутствия 4.5s (темп дыхания в покое) */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Аккуратный системный range-input для числовых осей */
+input[type='range'].parallelo-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range'].parallelo-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--range-accent, #D99B4E);
+  border: 2px solid var(--range-surface, #0D1217);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+input[type='range'].parallelo-range::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+}
+
+input[type='range'].parallelo-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--range-accent, #D99B4E);
+  border: 2px solid var(--range-surface, #0D1217);
+  cursor: pointer;
+}
+
 @keyframes presence-breathe {
   0%, 100% {
     transform: scale(1);
     opacity: 1;
   }
   50% {
-    transform: scale(1.22);
-    opacity: 0.68;
+    transform: scale(1.18);
+    opacity: 0.72;
   }
 }
 
 .animate-presence-breathe {
   animation: presence-breathe 4.5s ease-in-out infinite;
   transform-origin: center;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s ease-out forwards;
 }

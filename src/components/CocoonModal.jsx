@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import { IconWind } from './RitualIcons';
 
 /**
- * Практика «Сбросить кокон» (Ритуал отпускания Миссис Бентли)
- * Позволяет написать то, что давит и стало тесным, и осознанно растворить это.
+ * Практика «Сбросить кокон» — короткая когнитивная разгрузка без сохранения текста.
  */
 export function CocoonModal({ activeTheme, isOpen, onClose }) {
   const [burdenText, setBurdenText] = useState('');
@@ -17,47 +17,42 @@ export function CocoonModal({ activeTheme, isOpen, onClose }) {
     setTimeout(() => {
       setIsDissolving(false);
       setIsReleased(true);
-    }, 1800);
+    }, 1200);
   };
 
   const handleReset = () => {
     setBurdenText('');
     setIsReleased(false);
+    setIsDissolving(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="w-full max-w-sm p-6 rounded-[36px] shadow-2xl border transition-all duration-500 relative"
+        className="w-full max-w-sm p-5 rounded-2xl shadow-2xl border relative"
         style={{
           backgroundColor: activeTheme.surfaceCard,
           borderColor: activeTheme.borderColor,
         }}
       >
         <button
+          type="button"
           onClick={handleReset}
-          className="absolute top-5 right-5 text-sm opacity-50 hover:opacity-100 p-1"
+          className="absolute top-4 right-4 text-xs opacity-60 hover:opacity-100 p-1"
           style={{ color: activeTheme.textSecondary }}
+          aria-label="Закрыть"
         >
           ✕
         </button>
 
         {!isReleased ? (
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: `${activeTheme.accent}20`,
-                  color: activeTheme.accent,
-                }}
-              >
-                Практика отпускания
-              </span>
-              <span className="text-xs font-serif italic opacity-70" style={{ color: activeTheme.textSecondary }}>
-                по Рэю Брэдбери
-              </span>
+            <div
+              className="text-[10px] font-mono uppercase tracking-widest mb-1.5"
+              style={{ color: activeTheme.accent }}
+            >
+              Разгрузка · не сохраняется в память
             </div>
 
             <h3
@@ -68,92 +63,83 @@ export function CocoonModal({ activeTheme, isOpen, onClose }) {
             </h3>
 
             <p
-              className="text-xs leading-relaxed opacity-80 mb-4"
+              className="text-xs leading-relaxed mb-4"
               style={{ color: activeTheme.textSecondary }}
             >
-              «Ты сохраняешь коконы, корсеты, которые уже никогда не будут тебе впору.
-              Будь той, кто ты есть сегодня вечером — схорони то, чем ты не являешься».
+              Выпишите навязчивую мысль или чужое ожидание, которое создаёт напряжение.
+              Текст никуда не записывается и будет удалён сразу после завершения.
             </p>
 
-            <div className="mb-4">
-              <label
-                htmlFor="burdenInput"
-                className="block text-[11px] font-semibold tracking-wider uppercase opacity-70 mb-1.5"
-                style={{ color: activeTheme.textSecondary }}
-              >
-                Что стало тесным и больше тебе не служит?
-              </label>
-              <textarea
-                id="burdenInput"
-                rows={3}
-                value={burdenText}
-                onChange={(e) => setBurdenText(e.target.value)}
-                placeholder="Пытаться всё успеть, чувство вины за отдых, чужие ожидания..."
-                disabled={isDissolving}
-                className={`w-full text-xs p-3 rounded-2xl bg-black/[0.02] border border-black/5 focus:outline-none focus:ring-1 transition-all resize-none ${
-                  isDissolving ? 'opacity-0 scale-95 blur-md duration-1000' : 'duration-300'
-                }`}
-                style={{
-                  color: activeTheme.textPrimary,
-                  ringColor: activeTheme.primary,
-                }}
-              />
-            </div>
+            <textarea
+              rows={3}
+              value={burdenText}
+              onChange={(e) => setBurdenText(e.target.value)}
+              placeholder="Попытка всё контролировать, лишняя спешка, чувство вины за паузу..."
+              disabled={isDissolving}
+              className={`w-full text-xs p-3 rounded-xl border focus:outline-none transition-all resize-none mb-4 ${
+                isDissolving ? 'opacity-0 scale-95 blur-sm duration-700' : 'duration-200'
+              }`}
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+                color: activeTheme.textPrimary,
+              }}
+            />
 
             <button
+              type="button"
               onClick={handleRelease}
               disabled={!burdenText.trim() || isDissolving}
-              className={`w-full py-3 rounded-full text-xs font-medium transition-all shadow-xs flex items-center justify-center gap-2 ${
-                !burdenText.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:scale-102 hover:shadow-md'
+              className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity ${
+                !burdenText.trim() || isDissolving ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90'
               }`}
               style={{
                 backgroundColor: activeTheme.primary,
-                color: '#FFFFFF',
+                color: activeTheme.primaryText,
               }}
             >
-              {isDissolving ? (
-                <span className="italic font-serif animate-pulse">Растворяется в воздухе...</span>
-              ) : (
-                <span>Сбросить кокон и отпустить</span>
-              )}
+              {isDissolving ? 'Удаляется...' : 'Отпустить и очистить'}
             </button>
           </div>
         ) : (
           <div className="text-center py-4 space-y-4 animate-fade-in">
             <div
-              className="w-14 h-14 mx-auto rounded-full flex items-center justify-center text-xl shadow-inner animate-presence-breathe"
+              className="w-11 h-11 mx-auto rounded-xl border flex items-center justify-center"
               style={{
-                backgroundColor: `${activeTheme.secondary}20`,
-                color: activeTheme.secondary,
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+                color: activeTheme.accent,
               }}
             >
-              ✦
+              <IconWind className="w-5 h-5" />
             </div>
 
             <div>
               <h4
-                className="text-base font-serif font-medium leading-snug mb-2"
+                className="text-base font-serif font-medium mb-1.5"
                 style={{ color: activeTheme.textPrimary }}
               >
-                Ты — та, кто ты есть сегодня вечером.
+                Очищено. Этого достаточно.
               </h4>
               <p
-                className="text-xs leading-relaxed opacity-80"
+                className="text-xs leading-relaxed"
                 style={{ color: activeTheme.textSecondary }}
               >
-                Схоронено то, чем ты не являешься. Старый корсет сброшен. Твоё дыхание свободно, и в саду появилось место для нового ростка.
+                Запись удалена без следа. Можно вернуться к спокойному ритму вечера.
               </p>
             </div>
 
             <button
+              type="button"
               onClick={handleReset}
-              className="px-6 py-2.5 rounded-full text-xs font-medium transition-all shadow-xs hover:scale-105"
+              className="px-5 py-2 rounded-xl text-xs font-medium border transition-colors"
               style={{
                 backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
                 color: activeTheme.textPrimary,
               }}
             >
-              Сделать глубокий вдох
+              Закрыть
             </button>
           </div>
         )}

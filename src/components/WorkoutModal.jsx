@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
-import { StorageService } from '../services/storage';
+import { IconCheck } from './RitualIcons';
 
 /**
- * Модальное окно практики «Движение и тренировка» (Телесная радость)
- * Философия Parallelo: Движение без насилия, без подсчёта сожжённых калорий.
+ * Модальное окно фиксации движения и тренировки (без подсчёта калорий, с числовой шкалой отклика 1–10).
  */
 export function WorkoutModal({ activeTheme, isOpen, onClose, onComplete }) {
-  const [activityType, setActivityType] = useState('Растяжка и йога');
-  const [duration, setDuration] = useState('30');
+  const [activityType, setActivityType] = useState('Растяжка и мобильность');
+  const [duration, setDuration] = useState(30);
   const [feeling, setFeeling] = useState('Приятное тепло');
   const [enjoyment, setEnjoyment] = useState(8);
-  const [resultMessage, setResultMessage] = useState(null);
 
   if (!isOpen) return null;
 
   const ACTIVITIES = [
-    { id: 'stretch', title: 'Растяжка и йога', desc: 'Снять зажимы в спине и шее', icon: '🧘‍♀️' },
-    { id: 'strength', title: 'Силовая / Тонус', desc: 'Опора, сила и осанка', icon: '🏋️‍♀️' },
-    { id: 'cardio', title: 'Бег / Кардио', desc: 'Свежий воздух и дыхание', icon: '🏃‍♀️' },
-    { id: 'swim', title: 'Плавание / Вода', desc: 'Лёгкость и невесомость суставов', icon: '🏊‍♀️' },
-    { id: 'warmup', title: 'Зарядка 15 мин', desc: 'Мягко разбудить тело', icon: '🤸‍♀️' },
+    { id: 'stretch', title: 'Растяжка и мобильность', desc: 'Снятие зажимов, спина и суставы' },
+    { id: 'strength', title: 'Силовая / тонус', desc: 'Опора, мышечный корсет, осанка' },
+    { id: 'cardio', title: 'Бег / кардио', desc: 'Выносливость и ровное дыхание' },
+    { id: 'swim', title: 'Плавание / вода', desc: 'Разгрузка позвоночника и суставов' },
+    { id: 'warmup', title: 'Зарядка 15 мин', desc: 'Базовая активация тела' },
   ];
 
   const FEELINGS = [
@@ -28,228 +26,210 @@ export function WorkoutModal({ activeTheme, isOpen, onClose, onComplete }) {
     'Ясность в голове',
     'Снято напряжение',
     'Лёгкость в ногах',
-    'Бодрость',
+    'Усталость без перегруза',
   ];
 
   const handleSave = () => {
-    const workouts = StorageService.get('parallelo_workouts', []);
-    const newEntry = {
+    const entry = {
       type: activityType,
       duration: Number(duration),
       feeling,
-      enjoyment,
-      date: new Date().toISOString(),
+      enjoyment: Number(enjoyment),
+      timestamp: new Date().toISOString(),
     };
-    workouts.unshift(newEntry);
-    StorageService.set('parallelo_workouts', workouts.slice(0, 30));
-
-    setResultMessage(`Тело сказало спасибо! «${activityType}» согрела мышцы и подарила лёгкость.`);
-    setTimeout(() => {
-      setResultMessage(null);
-      if (onComplete) onComplete(newEntry);
-      onClose();
-    }, 2400);
+    if (onComplete) onComplete(entry);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="w-full max-w-sm p-6 rounded-[36px] shadow-2xl border transition-all duration-300 relative max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-sm p-5 rounded-2xl shadow-2xl border relative max-h-[90vh] overflow-y-auto"
         style={{
           backgroundColor: activeTheme.surfaceCard,
           borderColor: activeTheme.borderColor,
         }}
       >
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 text-sm opacity-50 hover:opacity-100 p-1"
+          className="absolute top-4 right-4 text-xs opacity-60 hover:opacity-100 p-1"
           style={{ color: activeTheme.textSecondary }}
+          aria-label="Закрыть"
         >
           ✕
         </button>
 
-        {!resultMessage ? (
-          <div className="space-y-4">
-            <div>
-              <span
-                className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: `${activeTheme.primary}15`,
-                  color: activeTheme.primary,
-                }}
-              >
-                Телесная радость
-              </span>
-              <h3
-                className="text-lg font-serif font-medium mt-1.5"
-                style={{ color: activeTheme.textPrimary }}
-              >
-                Движение и тренировка
-              </h3>
-              <p
-                className="text-xs opacity-75 mt-0.5 leading-relaxed"
-                style={{ color: activeTheme.textSecondary }}
-              >
-                Мы двигаемся не ради сожжённых калорий, а чтобы почувствовать жизнь и свободу в теле.
-              </p>
-            </div>
+        <div className="space-y-4">
+          <div>
+            <span
+              className="text-[10px] font-mono uppercase tracking-widest block mb-1"
+              style={{ color: activeTheme.primary }}
+            >
+              Фактор · нагрузка и отклик
+            </span>
+            <h3
+              className="text-lg font-serif font-medium"
+              style={{ color: activeTheme.textPrimary }}
+            >
+              Движение и тренировка
+            </h3>
+            <p className="text-xs mt-0.5" style={{ color: activeTheme.textSecondary }}>
+              Учитывается в корреляциях сна и ресурса на следующий день (+350 мл к норме воды).
+            </p>
+          </div>
 
-            {/* 1. Выбор вида активности */}
-            <div>
-              <span
-                className="block text-[11px] font-semibold tracking-wider uppercase opacity-70 mb-2"
-                style={{ color: activeTheme.textSecondary }}
-              >
-                Что это было сегодня
-              </span>
-              <div className="grid grid-cols-1 gap-1.5">
-                {ACTIVITIES.map((act) => {
-                  const isSelected = activityType === act.title;
-                  return (
-                    <button
-                      key={act.id}
-                      type="button"
-                      onClick={() => setActivityType(act.title)}
-                      className={`p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all ${
-                        isSelected ? 'shadow-xs font-medium' : 'opacity-70 hover:opacity-100'
-                      }`}
-                      style={{
-                        backgroundColor: isSelected ? activeTheme.surfaceContainer : 'transparent',
-                        borderColor: isSelected ? activeTheme.primary : activeTheme.borderColor,
-                        color: activeTheme.textPrimary,
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">{act.icon}</span>
-                        <div>
-                          <div className="text-xs font-serif">{act.title}</div>
-                          <div className="text-[10px] opacity-65">{act.desc}</div>
-                        </div>
+          <div>
+            <span
+              className="block text-[10px] font-mono uppercase tracking-wider mb-2"
+              style={{ color: activeTheme.textSecondary }}
+            >
+              Тип активности
+            </span>
+            <div className="space-y-1.5">
+              {ACTIVITIES.map((act) => {
+                const isSelected = activityType === act.title;
+                return (
+                  <button
+                    key={act.id}
+                    type="button"
+                    onClick={() => setActivityType(act.title)}
+                    className="w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-colors"
+                    style={{
+                      backgroundColor: isSelected ? activeTheme.surfaceContainer : 'transparent',
+                      borderColor: isSelected ? activeTheme.primary : activeTheme.borderColor,
+                      color: activeTheme.textPrimary,
+                    }}
+                  >
+                    <div>
+                      <div className="text-xs font-medium">{act.title}</div>
+                      <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                        {act.desc}
                       </div>
-                      {isSelected && (
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: activeTheme.primary }}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+                    {isSelected && (
+                      <span
+                        className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: activeTheme.primary,
+                          color: activeTheme.primaryText,
+                        }}
+                      >
+                        <IconCheck className="w-3 h-3" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* 2. Длительность в минутах */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span
-                  className="text-[11px] font-semibold tracking-wider uppercase opacity-70"
-                  style={{ color: activeTheme.textSecondary }}
-                >
-                  Сколько длилось движение
-                </span>
-                <span className="text-xs font-semibold" style={{ color: activeTheme.primary }}>
-                  {duration} мин
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {['15', '30', '45', '60'].map((mins) => (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span
+                className="text-[10px] font-mono uppercase tracking-wider"
+                style={{ color: activeTheme.textSecondary }}
+              >
+                Длительность
+              </span>
+              <span className="text-xs font-mono tabular-nums font-medium" style={{ color: activeTheme.primary }}>
+                {duration} мин
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[15, 30, 45, 60].map((mins) => {
+                const isSel = duration === mins;
+                return (
                   <button
                     key={mins}
                     type="button"
                     onClick={() => setDuration(mins)}
-                    className={`py-1.5 rounded-xl border text-xs transition-all ${
-                      duration === mins ? 'font-medium shadow-xs' : 'opacity-65'
-                    }`}
+                    className="py-1.5 rounded-lg border text-xs font-mono tabular-nums transition-colors"
                     style={{
-                      backgroundColor: duration === mins ? activeTheme.surfaceContainer : 'transparent',
-                      borderColor: duration === mins ? activeTheme.primary : activeTheme.borderColor,
-                      color: activeTheme.textPrimary,
+                      backgroundColor: isSel ? activeTheme.primary : activeTheme.surfaceContainer,
+                      borderColor: isSel ? activeTheme.primary : activeTheme.borderColor,
+                      color: isSel ? activeTheme.primaryText : activeTheme.textPrimary,
                     }}
                   >
                     {mins}м
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            {/* 3. Ощущения в теле */}
-            <div>
+          <div>
+            <span
+              className="block text-[10px] font-mono uppercase tracking-wider mb-1.5"
+              style={{ color: activeTheme.textSecondary }}
+            >
+              Телесный отклик
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {FEELINGS.map((f) => {
+                const isSel = feeling === f;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFeeling(f)}
+                    className="px-2.5 py-1 rounded-lg text-xs border transition-colors"
+                    style={{
+                      backgroundColor: isSel ? activeTheme.surfaceContainer : 'transparent',
+                      borderColor: isSel ? activeTheme.primary : activeTheme.borderColor,
+                      color: isSel ? activeTheme.textPrimary : activeTheme.textSecondary,
+                    }}
+                  >
+                    {f}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
               <span
-                className="block text-[11px] font-semibold tracking-wider uppercase opacity-70 mb-1.5"
+                className="text-[10px] font-mono uppercase tracking-wider"
                 style={{ color: activeTheme.textSecondary }}
               >
-                Что почувствовало тело
+                Удовольствие от движения
               </span>
-              <div className="flex flex-wrap gap-1.5">
-                {FEELINGS.map((f) => {
-                  const isSel = feeling === f;
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFeeling(f)}
-                      className={`px-3 py-1 rounded-full text-xs border transition-all ${
-                        isSel ? 'shadow-xs font-medium scale-102' : 'opacity-70 hover:opacity-100'
-                      }`}
-                      style={{
-                        backgroundColor: isSel ? activeTheme.surfaceContainer : 'transparent',
-                        borderColor: isSel ? activeTheme.primary : activeTheme.borderColor,
-                        color: activeTheme.textPrimary,
-                      }}
-                    >
-                      {f}
-                    </button>
-                  );
-                })}
-              </div>
+              <span className="text-xs font-mono tabular-nums font-semibold" style={{ color: activeTheme.primary }}>
+                {enjoyment} / 10
+              </span>
             </div>
-
-            {/* 4. Шкала радости движения (1-10) */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span
-                  className="text-[11px] font-semibold tracking-wider uppercase opacity-70"
-                  style={{ color: activeTheme.textSecondary }}
-                >
-                  Радость движения (без насилия)
-                </span>
-                <span className="text-xs font-bold" style={{ color: activeTheme.primary }}>
-                  {enjoyment} / 10
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={enjoyment}
-                onChange={(e) => setEnjoyment(Number(e.target.value))}
-                className="w-full accent-amber-600 cursor-pointer"
-              />
-              <div className="flex justify-between text-[9px] opacity-50">
-                <span>Еле заставила себя</span>
-                <span>В кайф и лёгкость</span>
-              </div>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={enjoyment}
+              onChange={(e) => setEnjoyment(Number(e.target.value))}
+              className="w-full parallelo-range"
+              style={{
+                background: activeTheme.borderColor,
+                '--range-accent': activeTheme.primary,
+                '--range-surface': activeTheme.surfaceCard,
+              }}
+            />
+            <div className="flex justify-between text-[10px] mt-1" style={{ color: activeTheme.textMuted }}>
+              <span>Через усилие</span>
+              <span>Лёгкость и ресурс</span>
             </div>
+          </div>
 
-            <button
-              onClick={handleSave}
-              className="w-full py-3 rounded-full text-xs font-medium text-white shadow-md hover:shadow-lg transition-all"
-              style={{ backgroundColor: activeTheme.primary }}
-            >
-              Зафиксировать радость тела
-            </button>
-          </div>
-        ) : (
-          <div className="p-6 text-center space-y-3 animate-fade-in">
-            <span className="text-3xl">🌿 ✨</span>
-            <p
-              className="text-sm font-serif italic leading-relaxed"
-              style={{ color: activeTheme.textPrimary }}
-            >
-              {resultMessage}
-            </p>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90"
+            style={{
+              backgroundColor: activeTheme.primary,
+              color: activeTheme.primaryText,
+            }}
+          >
+            Зафиксировать в дне
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -21,4 +21,15 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
+!backend/Parallelo_API.sln
 *.sw?
+
+# Backend (.NET / SQLite)
+backend/**/bin/
+backend/**/obj/
+.vs/
+*.db
+*.db-shm
+*.db-wal
+*.user
+appsettings.Production.json

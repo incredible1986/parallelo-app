@@ -1,326 +1,452 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { PALETTES, SEASONS } from '../data/brandingTokens';
 import { StorageService } from '../services/storage';
+import { computeHydrationTarget } from '../services/analytics';
+import { IconDownload, IconDrop, IconUpload } from './RitualIcons';
 
 /**
- * Карточка «Мой ритм и ориентиры тела» (Бережный онбординг / профиль)
- * Позволяет настроить свой сезон жизни и контекст тела БЕЗ диетического стыда.
+ * Профиль, палитры, формула тела, резервное копирование (JSON) и честный статус системы.
  */
-export function UserProfileCard({ activeTheme }) {
-  const savedProfile = StorageService.get('parallelo_user_profile', {});
+export function UserProfileCard({
+  activeTheme,
+  onSelectTheme,
+  profile,
+  onUpdateProfile,
+  onDataImportedOrReset,
+}) {
+  const [name, setName] = useState(profile.name || '');
+  const [season, setSeason] = useState(profile.season || 'apples');
+  const [height, setHeight] = useState(profile.height || '');
+  const [weight, setWeight] = useState(profile.weight || '');
+  const [excludeSick, setExcludeSick] = useState(profile.excludeSickFromBaseline ?? true);
+  const [notice, setNotice] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
-  const [name, setName] = useState(savedProfile.name || 'Юлия');
-  const [season, setSeason] = useState(savedProfile.season || 'apples');
-  const [height, setHeight] = useState(savedProfile.height || '168');
-  const [weight, setWeight] = useState(savedProfile.weight || '64');
-  const [healthSync, setHealthSync] = useState(savedProfile.healthSync ?? true);
-  const [notificationMode, setNotificationMode] = useState(savedProfile.notificationMode || 'gentle'); // 'gentle' | 'silent'
-  const [twilightTime, setTwilightTime] = useState(savedProfile.twilightTime || '21:00');
-  const [banyaReminder, setBanyaReminder] = useState(savedProfile.banyaReminder ?? true);
-  const [savedNote, setSavedNote] = useState(null);
+  const fileInputRef = useRef(null);
 
-  const SEASONS = [
-    { id: 'spring', title: 'Весенний ветер', age: '18–27 лет', focus: 'Поиск баланса, режим сна' },
-    { id: 'summer', title: 'Полуденное солнце', age: '28–40 лет', focus: 'Созидание, защита от выгорания' },
-    { id: 'apples', title: 'Спелые яблоки', age: '41–55 лет', focus: 'Бережность к телу, тёплая пища, сон' },
-    { id: 'forest', title: 'Глубокий лес', age: '56+ лет', focus: 'Мудрость, суставы, радость рассветам' },
-  ];
+  const hydrationPreview = computeHydrationTarget(weight, { rituals: [] });
+
+  const flashNotice = (msg) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(null), 3500);
+  };
 
   const handleSave = () => {
-    StorageService.set('parallelo_user_profile', {
-      name,
+    onUpdateProfile({
+      name: name.trim(),
       season,
-      height,
-      weight,
-      healthSync,
-      notificationMode,
-      twilightTime,
-      banyaReminder,
+      height: height ? String(height) : '',
+      weight: weight ? String(weight) : '',
+      excludeSickFromBaseline: excludeSick,
     });
-    setSavedNote('Твои ритмы бережно сохранены в памяти телефона. Приложение говорит с тобой на твоём языке.');
-    setTimeout(() => setSavedNote(null), 4000);
+    flashNotice('Параметры профиля сохранены.');
+  };
+
+  const handleExport = () => {
+    const json = StorageService.exportBackup();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `parallelo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flashNotice('Резервная копия JSON скачана.');
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const count = StorageService.importBackup(String(ev.target?.result || ''));
+        onDataImportedOrReset();
+        flashNotice(`Импортировано записей: ${count}.`);
+      } catch (err) {
+        flashNotice(err.message || 'Ошибка чтения JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleReset = () => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 5000);
+      return;
+    }
+    StorageService.resetAllParalleloData();
+    setConfirmReset(false);
+    onDataImportedOrReset();
+    flashNotice('Локальное хранилище очищено.');
   };
 
   return (
-    <div
-      className="p-5 rounded-3xl border transition-all duration-300 shadow-sm space-y-4"
-      style={{
-        backgroundColor: activeTheme.surfaceCard,
-        borderColor: activeTheme.borderColor,
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <span
-            className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Бережный профиль
-          </span>
-          <h3
-            className="text-base font-serif font-medium"
-            style={{ color: activeTheme.textPrimary }}
-          >
-            Мой ритм и ориентиры
-          </h3>
-        </div>
-
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-serif font-bold shadow-xs"
-          style={{
-            backgroundColor: activeTheme.surfaceContainer,
-            color: activeTheme.primary,
-          }}
-        >
-          {name.charAt(0) || 'Ю'}
-        </div>
-      </div>
-
-      {/* 1. Имя пользователя */}
+    <div className="space-y-4">
       <div>
-        <label
-          htmlFor="userNameInput"
-          className="block text-[11px] font-semibold tracking-wider uppercase opacity-70 mb-1"
+        <span
+          className="text-[10px] font-mono uppercase tracking-widest block"
           style={{ color: activeTheme.textSecondary }}
         >
-          Как тебя называть
-        </label>
-        <input
-          id="userNameInput"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full text-xs p-2.5 rounded-xl bg-black/[0.02] border border-black/5 focus:outline-none focus:ring-1"
-          style={{ color: activeTheme.textPrimary, ringColor: activeTheme.primary }}
-        />
+          Настройки и данные
+        </span>
+        <h2 className="text-lg font-serif font-medium mt-0.5" style={{ color: activeTheme.textPrimary }}>
+          Профиль и калибровка
+        </h2>
       </div>
 
-      {/* 2. Сезон жизни с напоминанием о возрасте */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span
-            className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Твой сезон жизни
-          </span>
-          <span className="text-xs font-serif font-medium" style={{ color: activeTheme.accent }}>
-            {SEASONS.find((s) => s.id === season)?.title} ({SEASONS.find((s) => s.id === season)?.age})
-          </span>
+      {notice && (
+        <div
+          className="px-3.5 py-2.5 rounded-xl border text-xs animate-fade-in"
+          style={{
+            backgroundColor: activeTheme.surfaceElevated,
+            borderColor: activeTheme.accent,
+            color: activeTheme.textPrimary,
+          }}
+        >
+          {notice}
         </div>
-        <p className="text-[10px] opacity-70 mb-2 italic" style={{ color: activeTheme.textSecondary }}>
-          Возрастной диапазон помогает подобрать бережный темп и комфортные ритуалы:
-        </p>
+      )}
 
-        <div className="grid grid-cols-2 gap-2">
-          {SEASONS.map((s) => {
-            const isPicked = season === s.id;
+      {/* 1. Визуальная тема */}
+      <div
+        className="p-4 rounded-2xl border space-y-3"
+        style={{
+          backgroundColor: activeTheme.surfaceCard,
+          borderColor: activeTheme.borderColor,
+        }}
+      >
+        <span
+          className="text-[10px] font-mono uppercase tracking-widest block"
+          style={{ color: activeTheme.textSecondary }}
+        >
+          Цветовая схема интерфейса
+        </span>
+        <div className="grid grid-cols-3 gap-2">
+          {Object.values(PALETTES).map((p) => {
+            const isSel = activeTheme.id === p.id;
             return (
-              <div
-                key={s.id}
-                onClick={() => setSeason(s.id)}
-                className={`p-3 rounded-2xl border cursor-pointer transition-all ${
-                  isPicked ? 'shadow-xs font-medium' : 'opacity-70 hover:opacity-100'
-                }`}
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelectTheme(p)}
+                className="p-2.5 rounded-xl border text-left transition-colors space-y-1.5"
                 style={{
-                  backgroundColor: isPicked ? activeTheme.surfaceContainer : 'transparent',
-                  borderColor: isPicked ? activeTheme.primary : activeTheme.borderColor,
-                  color: activeTheme.textPrimary,
+                  backgroundColor: isSel ? activeTheme.surfaceElevated : 'transparent',
+                  borderColor: isSel ? activeTheme.primary : activeTheme.borderColor,
                 }}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-serif font-medium">{s.title}</span>
+                <div className="flex items-center gap-1.5">
                   <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold ${
-                      isPicked ? 'bg-amber-500/15 text-amber-900' : 'bg-black/5 text-gray-500'
-                    }`}
-                  >
-                    {s.age}
-                  </span>
+                    className="w-3.5 h-3.5 rounded-md border"
+                    style={{ backgroundColor: p.surface, borderColor: p.borderColor }}
+                  />
+                  <span
+                    className="w-3.5 h-3.5 rounded-md"
+                    style={{ backgroundColor: p.primary }}
+                  />
                 </div>
-                <div className="text-[10px] opacity-70 leading-tight">{s.focus}</div>
-              </div>
+                <div className="text-xs font-medium leading-tight" style={{ color: activeTheme.textPrimary }}>
+                  {p.name}
+                </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* 3. Ориентиры тела (без диетического стыда) */}
-      <div className="p-3.5 rounded-2xl bg-black/[0.02] border border-black/5 space-y-2">
-        <div className="flex items-center justify-between">
-          <span
-            className="text-[11px] font-semibold tracking-wider uppercase opacity-70"
-            style={{ color: activeTheme.textSecondary }}
-          >
-            Ориентиры тела (по желанию)
-          </span>
-          <span className="text-[10px] opacity-60">не для взвешивания</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <span className="text-[10px] opacity-60 block">Рост (см)</span>
-            <input
-              type="number"
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5"
-              style={{ color: activeTheme.textPrimary }}
-            />
-          </div>
-          <div>
-            <span className="text-[10px] opacity-60 block">Вес (кг)</span>
-            <input
-              type="number"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="w-full text-xs p-2 rounded-lg bg-white border border-black/5"
-              style={{ color: activeTheme.textPrimary }}
-            />
-          </div>
-        </div>
-
-        <p className="text-[10px] leading-tight opacity-70 italic" style={{ color: activeTheme.textSecondary }}>
-          Используется только для мягкого расчёта нормы тёплой воды и баланса активности. Никаких целей «похудеть к лету».
-        </p>
-      </div>
-
-      {/* 4. Тумблер Health Connect / realme Здоровье */}
+      {/* 2. Основные данные и сезон жизни (единый источник истины) */}
       <div
-        onClick={() => setHealthSync(!healthSync)}
-        className="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all"
+        className="p-4 rounded-2xl border space-y-4"
         style={{
+          backgroundColor: activeTheme.surfaceCard,
           borderColor: activeTheme.borderColor,
-          backgroundColor: healthSync ? activeTheme.surfaceContainer : 'transparent',
         }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-emerald-600 text-xs font-bold">🌿</span>
-          <div>
-            <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-              Синхронизация здоровья (Health Connect / realme)
-            </div>
-            <div className="text-[10px] opacity-70" style={{ color: activeTheme.textSecondary }}>
-              Чтение фаз глубокого сна и шагов со смартфона или часов
-            </div>
+        <div>
+          <label
+            htmlFor="profileNameInput"
+            className="block text-[10px] font-mono uppercase tracking-widest mb-1.5"
+            style={{ color: activeTheme.textSecondary }}
+          >
+            Имя (по желанию)
+          </label>
+          <input
+            id="profileNameInput"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Как к вам обращаться"
+            className="w-full text-xs p-2.5 rounded-xl border focus:outline-none"
+            style={{
+              backgroundColor: activeTheme.surfaceContainer,
+              borderColor: activeTheme.borderColor,
+              color: activeTheme.textPrimary,
+            }}
+          />
+        </div>
+
+        <div>
+          <span
+            className="block text-[10px] font-mono uppercase tracking-widest mb-2"
+            style={{ color: activeTheme.textSecondary }}
+          >
+            Сезон жизни (возрастной ориентир)
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {SEASONS.map((s) => {
+              const isPicked = season === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSeason(s.id)}
+                  className="p-2.5 rounded-xl border text-left transition-colors"
+                  style={{
+                    backgroundColor: isPicked ? activeTheme.surfaceElevated : 'transparent',
+                    borderColor: isPicked ? activeTheme.primary : activeTheme.borderColor,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                      {s.title}
+                    </span>
+                    <span
+                      className="text-[10px] font-mono tabular-nums"
+                      style={{ color: isPicked ? activeTheme.primary : activeTheme.textMuted }}
+                    >
+                      {s.age}
+                    </span>
+                  </div>
+                  <div className="text-[10px] leading-snug" style={{ color: activeTheme.textSecondary }}>
+                    {s.focus}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-          healthSync ? 'bg-emerald-500/10 text-emerald-700' : 'bg-black/5 text-gray-500'
-        }`}>
-          {healthSync ? 'Включено' : 'Выключено'}
-        </span>
-      </div>
 
-      {/* 5. Бережные уведомления: Шёпот сумерек */}
-      <div className="p-3.5 rounded-2xl bg-black/[0.02] border border-black/5 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Ориентиры тела + прозрачная формула воды */}
+        <div
+          className="pt-3 border-t space-y-2.5"
+          style={{ borderColor: activeTheme.borderColor }}
+        >
+          <div className="flex items-center justify-between">
             <span
-              className="text-[11px] font-semibold tracking-wider uppercase opacity-70 block"
+              className="text-[10px] font-mono uppercase tracking-widest"
               style={{ color: activeTheme.textSecondary }}
             >
-              Уведомления без тревоги
+              Параметры тела (для формулы воды)
             </span>
-            <div className="text-xs font-serif font-medium" style={{ color: activeTheme.textPrimary }}>
-              Шёпот сумерек
+            <span className="text-[10px]" style={{ color: activeTheme.textMuted }}>
+              без диет и целей по весу
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="heightInput" className="text-[10px] block mb-1" style={{ color: activeTheme.textSecondary }}>
+                Рост (см)
+              </label>
+              <input
+                id="heightInput"
+                type="number"
+                placeholder="168"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                className="w-full text-xs font-mono tabular-nums p-2 rounded-xl border focus:outline-none"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                  color: activeTheme.textPrimary,
+                }}
+              />
+            </div>
+            <div>
+              <label htmlFor="weightInput" className="text-[10px] block mb-1" style={{ color: activeTheme.textSecondary }}>
+                Вес (кг)
+              </label>
+              <input
+                id="weightInput"
+                type="number"
+                placeholder="64"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                className="w-full text-xs font-mono tabular-nums p-2 rounded-xl border focus:outline-none"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                  color: activeTheme.textPrimary,
+                }}
+              />
             </div>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 font-medium">
-            Без спама и стриков
-          </span>
+
+          {hydrationPreview && (
+            <div
+              className="p-2.5 rounded-xl border flex items-center justify-between text-[11px]"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <span className="flex items-center gap-1.5" style={{ color: activeTheme.textSecondary }}>
+                <IconDrop className="w-3.5 h-3.5" style={{ color: activeTheme.secondary }} />
+                Базовая норма воды:
+              </span>
+              <span className="font-mono tabular-nums font-medium" style={{ color: activeTheme.textPrimary }}>
+                {hydrationPreview.baseMl} мл ({weight} × 30)
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Переключатель режима: Шёпот или Тишина */}
+        {/* Исключение дней болезни */}
+        <button
+          type="button"
+          onClick={() => setExcludeSick(!excludeSick)}
+          className="w-full p-3 rounded-xl border flex items-center justify-between text-left"
+          style={{
+            backgroundColor: activeTheme.surfaceContainer,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div>
+            <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+              Исключать дни болезни из нормы
+            </div>
+            <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
+              Рекомендуется, чтобы простуда не смещала σ и тренд
+            </div>
+          </div>
+          <span
+            className="text-[10px] font-mono px-2 py-0.5 rounded shrink-0"
+            style={{
+              backgroundColor: excludeSick ? activeTheme.accent : activeTheme.surfaceCard,
+              color: excludeSick ? activeTheme.primaryText : activeTheme.textSecondary,
+            }}
+          >
+            {excludeSick ? 'ВКЛ' : 'ВЫКЛ'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          className="w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90"
+          style={{
+            backgroundColor: activeTheme.primary,
+            color: activeTheme.primaryText,
+          }}
+        >
+          Сохранить настройки
+        </button>
+      </div>
+
+      {/* 3. Резервное копирование данных (защита от очистки браузера) */}
+      <div
+        className="p-4 rounded-2xl border space-y-3"
+        style={{
+          backgroundColor: activeTheme.surfaceCard,
+          borderColor: activeTheme.borderColor,
+        }}
+      >
+        <div>
+          <span
+            className="text-[10px] font-mono uppercase tracking-widest block"
+            style={{ color: activeTheme.textSecondary }}
+          >
+            Безопасность данных · Local-First
+          </span>
+          <p className="text-xs mt-1 leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+            Все наблюдения хранятся локально на вашем устройстве. Делайте экспорт JSON перед очисткой браузера или переносом на другой смартфон.
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setNotificationMode('gentle')}
-            className={`p-2 rounded-xl text-left border transition-all text-xs ${
-              notificationMode === 'gentle' ? 'shadow-xs font-medium' : 'opacity-60'
-            }`}
+            onClick={handleExport}
+            className="py-2.5 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             style={{
-              backgroundColor: notificationMode === 'gentle' ? activeTheme.surfaceContainer : 'transparent',
-              borderColor: notificationMode === 'gentle' ? activeTheme.primary : activeTheme.borderColor,
+              backgroundColor: activeTheme.surfaceContainer,
+              borderColor: activeTheme.borderColor,
               color: activeTheme.textPrimary,
             }}
           >
-            <div className="font-serif">🌿 Шёпот сумерек</div>
-            <div className="text-[10px] opacity-70 mt-0.5">1 мягкое приглашение вечером</div>
+            <IconDownload className="w-3.5 h-3.5" />
+            Экспорт JSON
           </button>
 
           <button
             type="button"
-            onClick={() => setNotificationMode('silent')}
-            className={`p-2 rounded-xl text-left border transition-all text-xs ${
-              notificationMode === 'silent' ? 'shadow-xs font-medium' : 'opacity-60'
-            }`}
+            onClick={() => fileInputRef.current?.click()}
+            className="py-2.5 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             style={{
-              backgroundColor: notificationMode === 'silent' ? activeTheme.surfaceContainer : 'transparent',
-              borderColor: notificationMode === 'silent' ? activeTheme.primary : activeTheme.borderColor,
+              backgroundColor: activeTheme.surfaceContainer,
+              borderColor: activeTheme.borderColor,
               color: activeTheme.textPrimary,
             }}
           >
-            <div className="font-serif">🕯 Полная тишина</div>
-            <div className="text-[10px] opacity-70 mt-0.5">Приходи, когда сама захочешь</div>
+            <IconUpload className="w-3.5 h-3.5" />
+            Импорт JSON
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+        </div>
+
+        <div className="pt-2 border-t" style={{ borderColor: activeTheme.borderColor }}>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="w-full py-2 rounded-xl border text-[11px] font-medium transition-colors"
+            style={{
+              borderColor: confirmReset ? activeTheme.danger : activeTheme.borderColor,
+              color: confirmReset ? activeTheme.danger : activeTheme.textMuted,
+            }}
+          >
+            {confirmReset ? 'Подтвердить полное удаление локальных данных?' : 'Сбросить локальные данные'}
           </button>
         </div>
-
-        {notificationMode === 'gentle' && (
-          <div className="space-y-2.5 pt-1 border-t border-black/5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[11px] opacity-80" style={{ color: activeTheme.textSecondary }}>
-                Время вечернего вопроса:
-              </span>
-              <input
-                type="time"
-                value={twilightTime}
-                onChange={(e) => setTwilightTime(e.target.value)}
-                className="text-xs p-1.5 rounded-lg bg-white border border-black/10 font-mono"
-                style={{ color: activeTheme.textPrimary }}
-              />
-            </div>
-
-            <div
-              onClick={() => setBanyaReminder(!banyaReminder)}
-              className="flex items-center justify-between cursor-pointer text-[11px]"
-            >
-              <span className="opacity-80" style={{ color: activeTheme.textPrimary }}>
-                Банный колокол перед выходными
-              </span>
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                banyaReminder ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {banyaReminder ? 'Включено' : 'Выключено'}
-              </span>
-            </div>
-
-            <p className="text-[10px] leading-tight opacity-70 italic" style={{ color: activeTheme.textSecondary }}>
-              Пример пуша: «За окном вечер. Где в теле сегодня ощущалось больше всего тепла? Или просто налей чаю.»
-            </p>
-          </div>
-        )}
       </div>
 
-      {savedNote && (
-        <div
-          className="p-3 rounded-2xl text-center text-xs font-serif italic animate-fade-in border"
-          style={{
-            backgroundColor: `${activeTheme.secondary}15`,
-            color: activeTheme.secondary,
-            borderColor: activeTheme.secondary,
-          }}
-        >
-          {savedNote}
-        </div>
-      )}
-
-      <button
-        onClick={handleSave}
-        className="w-full py-2.5 rounded-full text-xs font-medium text-white transition-all shadow-xs hover:shadow-md hover:scale-101"
-        style={{ backgroundColor: activeTheme.primary }}
+      {/* 4. Честный статус системных модулей */}
+      <div
+        className="p-4 rounded-2xl border space-y-2 text-[11px]"
+        style={{
+          backgroundColor: activeTheme.surfaceCard,
+          borderColor: activeTheme.borderColor,
+          color: activeTheme.textSecondary,
+        }}
       >
-        Сохранить мой ритм
-      </button>
+        <span className="text-[10px] font-mono uppercase tracking-widest block">
+          Статус модулей v2.0
+        </span>
+        <div className="flex justify-between">
+          <span>Хранилище и офлайн-кэш (SW)</span>
+          <span className="font-mono" style={{ color: activeTheme.accent }}>Активно</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Математическое ядро (МНК, σ, лаги)</span>
+          <span className="font-mono" style={{ color: activeTheme.accent }}>Активно</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Облачная синхронизация (.NET API)</span>
+          <span className="font-mono" style={{ color: activeTheme.textMuted }}>В очереди</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Push-уведомления и Health Connect</span>
+          <span className="font-mono" style={{ color: activeTheme.textMuted }}>Android Wrapper</span>
+        </div>
+      </div>
     </div>
   );
 }

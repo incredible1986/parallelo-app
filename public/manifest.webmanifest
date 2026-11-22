@@ -1,14 +1,15 @@
 {
-  "name": "Parallelo — Тело и душа",
+  "name": "Parallelo — Аналитика ритмов и состояния",
   "short_name": "Parallelo",
-  "description": "Приложение бережных ритуалов и сенсорного заземления",
-  "start_url": "/",
+  "description": "Персональная аналитика состояния, сна и корреляций без стриков и чувства вины",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#FDF9F1",
-  "theme_color": "#1E3A5F",
+  "background_color": "#0D1217",
+  "theme_color": "#0D1217",
   "icons": [
     {
-      "src": "/branding/parallelo-p-3d.jpg",
+      "src": "./branding/parallelo-p-3d.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any maskable"
