@@ -23,9 +23,13 @@ export function RitualLogger({
   onUpdateDay,
   shoppingPauses,
   onUpdatePauses,
+  customFactors = [],
+  onUpdateCustomFactors,
 }) {
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
   const [feedback, setFeedback] = useState(null);
 
   const activeRituals = dayRecord.rituals || [];
@@ -105,6 +109,38 @@ export function RitualLogger({
     onUpdatePauses(next);
   };
 
+  const handleAddCustomFactor = (e) => {
+    e.preventDefault();
+    const clean = customName.trim();
+    if (!clean || !onUpdateCustomFactors) return;
+    const newFactor = {
+      id: `custom_${Date.now()}`,
+      group: 'custom',
+      title: clean,
+      iconKey: 'presence',
+      category: 'Личное',
+      desc: 'Личный фактор — отслеживается в общей аналитике',
+      waterBonusMl: 0,
+      isCustom: true,
+    };
+    onUpdateCustomFactors([...customFactors, newFactor]);
+    setCustomName('');
+    setIsAddingCustom(false);
+    showNotice(`Добавлен личный фактор «${clean}».`);
+  };
+
+  const handleDeleteCustomFactor = (e, id, title) => {
+    e.stopPropagation();
+    if (!onUpdateCustomFactors) return;
+    onUpdateCustomFactors(customFactors.filter((f) => f.id !== id));
+    if (activeRituals.includes(id)) {
+      onUpdateDay(selectedDate, {
+        rituals: activeRituals.filter((rId) => rId !== id),
+      });
+    }
+    showNotice(`Фактор «${title}» удалён из списка.`);
+  };
+
   const anchorRituals = RITUALS_CATALOG.filter((r) => r.group === 'anchors');
   const bodySubstancesRituals = RITUALS_CATALOG.filter((r) => r.group === 'body_substances');
 
@@ -162,15 +198,32 @@ export function RitualLogger({
           </div>
         </div>
 
-        <div
-          className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
-          style={{
-            backgroundColor: isDone ? activeTheme.primary : 'transparent',
-            borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-            color: activeTheme.primaryText,
-          }}
-        >
-          {isDone && <IconCheck className="w-3.5 h-3.5" />}
+        <div className="flex items-center gap-2 shrink-0">
+          {ritual.isCustom && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => handleDeleteCustomFactor(e, ritual.id, ritual.title)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDeleteCustomFactor(e, ritual.id, ritual.title);
+              }}
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs opacity-50 hover:opacity-100"
+              style={{ color: activeTheme.textSecondary }}
+              title="Удалить фактор"
+            >
+              ✕
+            </span>
+          )}
+          <div
+            className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
+            style={{
+              backgroundColor: isDone ? activeTheme.primary : 'transparent',
+              borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+              color: activeTheme.primaryText,
+            }}
+          >
+            {isDone && <IconCheck className="w-3.5 h-3.5" />}
+          </div>
         </div>
       </button>
     );
@@ -231,6 +284,90 @@ export function RitualLogger({
           </p>
         </div>
         <div className="space-y-2">{bodySubstancesRituals.map(renderRitualButton)}</div>
+      </div>
+
+      {/* Группа 3: Мои личные факторы */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+              Мои факторы
+            </span>
+            <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
+              Свои триггеры и привычки: кофе вечером, магний, долгие созвоны...
+            </p>
+          </div>
+          {!isAddingCustom && (
+            <button
+              type="button"
+              onClick={() => setIsAddingCustom(true)}
+              className="px-2.5 py-1 rounded-lg border text-xs font-medium shrink-0 transition-colors"
+              style={{
+                backgroundColor: activeTheme.surfaceCard,
+                borderColor: activeTheme.borderColor,
+                color: activeTheme.primary,
+              }}
+            >
+              + Добавить
+            </button>
+          )}
+        </div>
+
+        {isAddingCustom && (
+          <form
+            onSubmit={handleAddCustomFactor}
+            className="p-3 rounded-2xl border space-y-2.5 animate-fade-in"
+            style={{
+              backgroundColor: activeTheme.surfaceCard,
+              borderColor: activeTheme.primary,
+            }}
+          >
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="Например: Кофе после 15:00"
+              maxLength={40}
+              autoFocus
+              className="w-full text-xs p-2.5 rounded-xl border focus:outline-none"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+                color: activeTheme.textPrimary,
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCustom(false);
+                  setCustomName('');
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs"
+                style={{ color: activeTheme.textSecondary }}
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={!customName.trim()}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold ${
+                  !customName.trim() ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+                style={{
+                  backgroundColor: activeTheme.primary,
+                  color: activeTheme.primaryText,
+                }}
+              >
+                Создать
+              </button>
+            </div>
+          </form>
+        )}
+
+        {customFactors.length > 0 && (
+          <div className="space-y-2">{customFactors.map(renderRitualButton)}</div>
+        )}
       </div>
 
       {/* Зафиксированные тренировки за выбранный день */}

@@ -19,6 +19,8 @@ export function UserProfileCard({
   const [height, setHeight] = useState(profile.height || '');
   const [weight, setWeight] = useState(profile.weight || '');
   const [excludeSick, setExcludeSick] = useState(profile.excludeSickFromBaseline ?? true);
+  const [trackCycle, setTrackCycle] = useState(Boolean(profile.trackCycle));
+  const [cycleLength, setCycleLength] = useState(Number(profile.cycleLength || 28));
   const [notice, setNotice] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -38,6 +40,8 @@ export function UserProfileCard({
       height: height ? String(height) : '',
       weight: weight ? String(weight) : '',
       excludeSickFromBaseline: excludeSick,
+      trackCycle,
+      cycleLength: Math.max(21, Math.min(40, Number(cycleLength || 28))),
     });
     flashNotice('Настройки профиля сохранены.');
   };
@@ -318,6 +322,69 @@ export function UserProfileCard({
             {excludeSick ? 'Вкл' : 'Выкл'}
           </span>
         </button>
+
+        {/* Опциональный учёт цикла */}
+        <div
+          className="p-3 rounded-xl border space-y-2.5"
+          style={{
+            backgroundColor: activeTheme.surfaceContainer,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setTrackCycle(!trackCycle)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <div>
+              <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                Учитывать женский цикл
+              </div>
+              <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                Помогает отличать естественный гормональный фон от усталости
+              </div>
+            </div>
+            <span
+              className="text-[11px] font-medium px-2 py-0.5 rounded shrink-0"
+              style={{
+                backgroundColor: trackCycle ? activeTheme.accent : activeTheme.surfaceCard,
+                color: trackCycle ? activeTheme.primaryText : activeTheme.textSecondary,
+              }}
+            >
+              {trackCycle ? 'Вкл' : 'Выкл'}
+            </span>
+          </button>
+
+          {trackCycle && (
+            <div
+              className="pt-2.5 border-t flex items-center justify-between text-xs"
+              style={{ borderColor: activeTheme.borderColor }}
+            >
+              <span style={{ color: activeTheme.textSecondary }}>Обычная длина цикла</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCycleLength((v) => Math.max(21, v - 1))}
+                  className="w-7 h-7 rounded-lg border text-xs"
+                  style={{ borderColor: activeTheme.borderColor, color: activeTheme.textPrimary }}
+                >
+                  −
+                </button>
+                <span className="tabular-nums font-medium w-12 text-center" style={{ color: activeTheme.textPrimary }}>
+                  {cycleLength} дн.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCycleLength((v) => Math.min(40, v + 1))}
+                  className="w-7 h-7 rounded-lg border text-xs"
+                  style={{ borderColor: activeTheme.borderColor, color: activeTheme.textPrimary }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           type="button"

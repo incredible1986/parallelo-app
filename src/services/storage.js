@@ -9,6 +9,7 @@ const KEYS = {
   RECORDS: 'parallelo_v2_records',
   PROFILE: 'parallelo_v2_profile',
   PAUSES: 'parallelo_v2_shopping_pauses',
+  CUSTOM_FACTORS: 'parallelo_v2_custom_factors',
   UI: 'parallelo_v2_ui',
   MIGRATED: 'parallelo_v2_migrated_v1',
 };
@@ -60,6 +61,7 @@ export function createEmptyDayRecord(dateKey = getLocalDateKey()) {
     colorId: 'sage',
     questionTag: null,
     feltAlive: false,
+    isCycleStart: false,
     note: '',
     isSaved: false,
     updatedAt: null,
@@ -72,6 +74,8 @@ export const DEFAULT_PROFILE = {
   height: '',
   weight: '',
   excludeSickFromBaseline: true,
+  trackCycle: false,
+  cycleLength: 28,
   themeId: 'obsidian',
 };
 
@@ -243,6 +247,15 @@ export const StorageService = {
     return pauses;
   },
 
+  getCustomFactors() {
+    return this.get(KEYS.CUSTOM_FACTORS, []);
+  },
+
+  saveCustomFactors(factors) {
+    this.set(KEYS.CUSTOM_FACTORS, factors);
+    return factors;
+  },
+
   getUiPrefs() {
     return this.get(KEYS.UI, { welcomeDismissed: false });
   },
@@ -262,6 +275,7 @@ export const StorageService = {
         profile: this.getProfile(),
         records: this.getAllRecords(),
         shoppingPauses: this.getShoppingPauses(),
+        customFactors: this.getCustomFactors(),
       },
       null,
       2
@@ -280,6 +294,9 @@ export const StorageService = {
     }
     if (Array.isArray(parsed.shoppingPauses)) {
       this.set(KEYS.PAUSES, parsed.shoppingPauses);
+    }
+    if (Array.isArray(parsed.customFactors)) {
+      this.set(KEYS.CUSTOM_FACTORS, parsed.customFactors);
     }
     return Object.keys(mergedRecords).length;
   },

@@ -26,10 +26,12 @@ export default function App() {
   const [profile, setProfile] = useState(() => StorageService.getProfile());
   const [allRecords, setAllRecords] = useState(() => StorageService.getAllRecords());
   const [shoppingPauses, setShoppingPauses] = useState(() => StorageService.getShoppingPauses());
+  const [customFactors, setCustomFactors] = useState(() => StorageService.getCustomFactors());
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey());
   const [activeTab, setActiveTab] = useState('today');
 
   const activeTheme = PALETTES[profile.themeId] || PALETTES.obsidian;
+  const fullCatalog = useMemo(() => [...RITUALS_CATALOG, ...customFactors], [customFactors]);
 
   // Синхронизируем цвет статус-бара PWA и фон body с выбранной темой
   useEffect(() => {
@@ -49,10 +51,13 @@ export default function App() {
 
   const analyticsSummary = useMemo(
     () =>
-      computeFullAnalytics(allRecords, RITUALS_CATALOG, {
+      computeFullAnalytics(allRecords, fullCatalog, {
         excludeSick: profile.excludeSickFromBaseline ?? true,
+        trackCycle: Boolean(profile.trackCycle),
+        cycleLength: Number(profile.cycleLength || 28),
+        shoppingPauses,
       }),
-    [allRecords, profile.excludeSickFromBaseline]
+    [allRecords, fullCatalog, profile.excludeSickFromBaseline, profile.trackCycle, profile.cycleLength, shoppingPauses]
   );
 
   const handleUpdateDay = (dateKey, patch) => {
@@ -79,10 +84,16 @@ export default function App() {
     setShoppingPauses(nextPauses);
   };
 
+  const handleUpdateCustomFactors = (nextFactors) => {
+    StorageService.saveCustomFactors(nextFactors);
+    setCustomFactors(nextFactors);
+  };
+
   const handleRefreshFromStorage = () => {
     setProfile(StorageService.getProfile());
     setAllRecords(StorageService.getAllRecords());
     setShoppingPauses(StorageService.getShoppingPauses());
+    setCustomFactors(StorageService.getCustomFactors());
   };
 
   const handleJumpToDate = (dateKey) => {
@@ -122,6 +133,7 @@ export default function App() {
               selectedDate={selectedDate}
               onChangeDate={setSelectedDate}
               dayRecord={currentDayRecord}
+              allRecords={allRecords}
               onUpdateDay={handleUpdateDay}
               profile={profile}
               baselineMean={analyticsSummary.mean}
@@ -137,6 +149,8 @@ export default function App() {
               onUpdateDay={handleUpdateDay}
               shoppingPauses={shoppingPauses}
               onUpdatePauses={handleUpdatePauses}
+              customFactors={customFactors}
+              onUpdateCustomFactors={handleUpdateCustomFactors}
             />
           )}
 
@@ -145,6 +159,8 @@ export default function App() {
               activeTheme={activeTheme}
               allRecords={allRecords}
               profile={profile}
+              customFactors={customFactors}
+              shoppingPauses={shoppingPauses}
               onToggleExcludeSick={() =>
                 handleUpdateProfile({
                   excludeSickFromBaseline: !(profile.excludeSickFromBaseline ?? true),

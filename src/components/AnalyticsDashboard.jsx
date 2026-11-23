@@ -11,8 +11,6 @@ import {
 } from '../services/analytics';
 import { RITUAL_ICONS } from './RitualIcons';
 
-const RITUAL_TITLES = Object.fromEntries(RITUALS_CATALOG.map((r) => [r.id, r.title]));
-
 function formatSigned(val) {
   if (val === null || val === undefined || !Number.isFinite(val)) return '—';
   if (val > 0) return `+${val}`;
@@ -23,9 +21,20 @@ export function AnalyticsDashboard({
   activeTheme,
   allRecords,
   profile,
+  customFactors = [],
+  shoppingPauses = [],
   onToggleExcludeSick,
   onSelectDateToEdit,
 }) {
+  const fullCatalog = useMemo(
+    () => [...RITUALS_CATALOG, ...customFactors],
+    [customFactors]
+  );
+  const ritualTitles = useMemo(
+    () => Object.fromEntries(fullCatalog.map((r) => [r.id, r.title])),
+    [fullCatalog]
+  );
+
   const realCount = Object.values(allRecords || {}).filter(
     (r) => r && (r.isSaved || (r.rituals && r.rituals.length > 0))
   ).length;
@@ -42,8 +51,14 @@ export function AnalyticsDashboard({
   const excludeSick = profile?.excludeSickFromBaseline ?? true;
 
   const analytics = useMemo(
-    () => computeFullAnalytics(sourceRecords, RITUALS_CATALOG, { excludeSick }),
-    [sourceRecords, excludeSick]
+    () =>
+      computeFullAnalytics(sourceRecords, fullCatalog, {
+        excludeSick,
+        trackCycle: Boolean(profile?.trackCycle),
+        cycleLength: Number(profile?.cycleLength || 28),
+        shoppingPauses: isDemoMode ? [] : shoppingPauses,
+      }),
+    [sourceRecords, fullCatalog, excludeSick, profile?.trackCycle, profile?.cycleLength, isDemoMode, shoppingPauses]
   );
 
   // Построение календарной сетки для выбранного месяца (Пн..Вс)
@@ -261,6 +276,49 @@ export function AnalyticsDashboard({
         )
       )}
 
+      {/* БЛОК 0: Наблюдение дня (живые выводы словами) */}
+      {analytics.insights && analytics.insights.length > 0 && (
+        <div
+          className="p-4 rounded-2xl border space-y-2.5"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Наблюдение дня
+          </span>
+          <div className="space-y-2">
+            {analytics.insights.map((ins) => {
+              const accentBar =
+                ins.tone === 'positive'
+                  ? activeTheme.accent
+                  : ins.tone === 'caution'
+                  ? activeTheme.danger
+                  : activeTheme.primary;
+              return (
+                <div
+                  key={ins.id}
+                  className="p-3 rounded-xl border-l-2 border space-y-0.5"
+                  style={{
+                    backgroundColor: activeTheme.surfaceContainer,
+                    borderColor: activeTheme.borderColor,
+                    borderLeftColor: accentBar,
+                  }}
+                >
+                  <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                    {ins.title}
+                  </div>
+                  <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                    {ins.text}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Фильтр исключения дней болезни */}
       {analytics.sickDaysCount > 0 && (
         <button
@@ -464,7 +522,7 @@ export function AnalyticsDashboard({
                   </div>
                   <div className="text-[11px] truncate" style={{ color: activeTheme.textSecondary }}>
                     {(activePoint.rituals || []).length > 0
-                      ? activePoint.rituals.map((id) => RITUAL_TITLES[id] || id).join(', ')
+                      ? activePoint.rituals.map((id) => ritualTitles[id] || id).join(', ')
                       : 'Без отмеченных факторов'}
                   </div>
                 </div>
@@ -628,7 +686,7 @@ export function AnalyticsDashboard({
                 </div>
                 {analytics.adjacent.maxJump.prevRituals.length > 0 && (
                   <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
-                    Накануне: {analytics.adjacent.maxJump.prevRituals.map((id) => RITUAL_TITLES[id] || id).join(', ')}
+                    Накануне: {analytics.adjacent.maxJump.prevRituals.map((id) => ritualTitles[id] || id).join(', ')}
                   </div>
                 )}
               </div>
@@ -749,6 +807,138 @@ export function AnalyticsDashboard({
           </>
         )}
       </div>
+
+      {/* БЛОК 4.5: Что влияет на ваш сон (факторы -> сон следующей ночью) */}
+      {analytics.factorImpacts.some(
+        (f) => f.count >= 1 && (f.sleepHoursDelta !== null || f.sleepQualityDelta !== null)
+      ) && (
+        <div
+          className="p-4 rounded-2xl border space-y-3"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-serif font-medium" style={{ color: activeTheme.textPrimary }}>
+                Что влияет на ваш сон
+              </h3>
+              <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textSecondary }}>
+                Как меняется сон следующей ночью после события
+              </p>
+            </div>
+            <div className="flex gap-3 text-[10px] shrink-0" style={{ color: activeTheme.textMuted }}>
+              <span>Длительность</span>
+              <span>Качество</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {analytics.factorImpacts
+              .filter(
+                (f) => f.count >= 1 && (f.sleepHoursDelta !== null || f.sleepQualityDelta !== null)
+              )
+              .sort(
+                (a, b) =>
+                  Math.abs(b.sleepQualityDelta ?? 0) +
+                  Math.abs(b.sleepHoursDelta ?? 0) -
+                  (Math.abs(a.sleepQualityDelta ?? 0) + Math.abs(a.sleepHoursDelta ?? 0))
+              )
+              .slice(0, 6)
+              .map((f) => {
+                const IconComp = RITUAL_ICONS[f.iconKey] || RITUAL_ICONS.presence;
+                const hColor =
+                  f.sleepHoursDelta === null
+                    ? activeTheme.textMuted
+                    : f.sleepHoursDelta > 0
+                    ? activeTheme.accent
+                    : f.sleepHoursDelta < 0
+                    ? activeTheme.danger
+                    : activeTheme.textSecondary;
+                const qColor =
+                  f.sleepQualityDelta === null
+                    ? activeTheme.textMuted
+                    : f.sleepQualityDelta > 0
+                    ? activeTheme.accent
+                    : f.sleepQualityDelta < 0
+                    ? activeTheme.danger
+                    : activeTheme.textSecondary;
+
+                return (
+                  <div
+                    key={`sleep_${f.id}`}
+                    className="p-2.5 rounded-xl border flex items-center justify-between gap-2"
+                    style={{
+                      backgroundColor: activeTheme.surfaceContainer,
+                      borderColor: activeTheme.borderColor,
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <IconComp className="w-4 h-4 shrink-0" style={{ color: activeTheme.textSecondary }} />
+                      <div className="text-xs font-medium truncate" style={{ color: activeTheme.textPrimary }}>
+                        {f.title}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 tabular-nums text-xs shrink-0">
+                      <span className="w-14 text-right" style={{ color: hColor }}>
+                        {f.sleepHoursDelta !== null ? `${formatSigned(f.sleepHoursDelta)} ч` : '—'}
+                      </span>
+                      <span className="w-12 text-right font-semibold" style={{ color: qColor }}>
+                        {formatSigned(f.sleepQualityDelta)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* БЛОК 4.7: Ритм цикла (если включён в профиле) */}
+      {profile?.trackCycle && analytics.cycleStats && (
+        <div
+          className="p-4 rounded-2xl border space-y-2.5"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Ритм цикла
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <div
+              className="p-3 rounded-xl border"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                Первая половина (1–14 дн.)
+              </div>
+              <div className="text-lg font-semibold tabular-nums mt-0.5" style={{ color: activeTheme.textPrimary }}>
+                {analytics.cycleStats.firstAvg ?? '—'}
+              </div>
+            </div>
+            <div
+              className="p-3 rounded-xl border"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                Вторая половина (15+ дн.)
+              </div>
+              <div className="text-lg font-semibold tabular-nums mt-0.5" style={{ color: activeTheme.textPrimary }}>
+                {analytics.cycleStats.secondAvg ?? '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* БЛОК 5: Что наполняет, а что забирает силы */}
       <div

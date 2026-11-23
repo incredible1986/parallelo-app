@@ -13,7 +13,7 @@
  * 9. Формула индивидуальной гидратации (вес × 30 мл + термо/нагрузочные поправки)
  */
 
-import { getLocalDateKey } from './storage.js';
+import { getLocalDateKey, parseDateKey } from './storage.js';
 
 const round = (n, digits = 1) => {
   if (!Number.isFinite(n)) return 0;
@@ -272,6 +272,10 @@ export function computeFactorImpacts(series, catalog) {
       const sameWithout = [];
       const nextWith = [];
       const nextWithout = [];
+      const nextSleepHoursWith = [];
+      const nextSleepHoursWithout = [];
+      const nextSleepQualityWith = [];
+      const nextSleepQualityWithout = [];
       const binFlags = [];
       const nextIndices = [];
 
@@ -286,6 +290,15 @@ export function computeFactorImpacts(series, catalog) {
           else nextWithout.push(tomorrow.index);
           binFlags.push(has ? 1 : 0);
           nextIndices.push(tomorrow.index);
+
+          if (Number.isFinite(Number(tomorrow.sleepHours))) {
+            if (has) nextSleepHoursWith.push(Number(tomorrow.sleepHours));
+            else nextSleepHoursWithout.push(Number(tomorrow.sleepHours));
+          }
+          if (Number.isFinite(Number(tomorrow.sleepQuality))) {
+            if (has) nextSleepQualityWith.push(Number(tomorrow.sleepQuality));
+            else nextSleepQualityWithout.push(Number(tomorrow.sleepQuality));
+          }
         }
       });
 
@@ -298,6 +311,16 @@ export function computeFactorImpacts(series, catalog) {
       const nextDayDelta =
         nextWith.length > 0 && nextWithout.length > 0
           ? round(computeMean(nextWith) - computeMean(nextWithout), 1)
+          : null;
+
+      const sleepHoursDelta =
+        nextSleepHoursWith.length > 0 && nextSleepHoursWithout.length > 0
+          ? round(computeMean(nextSleepHoursWith) - computeMean(nextSleepHoursWithout), 1)
+          : null;
+
+      const sleepQualityDelta =
+        nextSleepQualityWith.length > 0 && nextSleepQualityWithout.length > 0
+          ? round(computeMean(nextSleepQualityWith) - computeMean(nextSleepQualityWithout), 1)
           : null;
 
       const lagCorrelation =
@@ -313,6 +336,8 @@ export function computeFactorImpacts(series, catalog) {
         count,
         sameDayDelta,
         nextDayDelta,
+        sleepHoursDelta,
+        sleepQualityDelta,
         lagCorrelation: lagCorrelation !== null ? round(lagCorrelation, 2) : null,
         isReliable: count >= 3 && sameWithout.length >= 2,
       };
@@ -361,9 +386,208 @@ export function computeHydrationTarget(weightKg, record) {
 }
 
 /**
+ * Вычисление дня и фазы цикла для заданной даты (на основе последней отметки 1-го дня цикла <= dateKey).
+ */
+export function computeCycleInfo(dateKey, recordsMap, cycleLength = 28) {
+  if (!recordsMap || !dateKey) return null;
+  const starts = Object.values(recordsMap)
+    .filter((r) => r && r.isCycleStart && r.date && r.date <= dateKey)
+    .map((r) => r.date)
+    .sort();
+
+  if (starts.length === 0) return null;
+
+  const lastStart = starts[starts.length - 1];
+  const diffDays = Math.round(
+    (parseDateKey(dateKey).getTime() - parseDateKey(lastStart).getTime()) / 86400000
+  );
+  const maxTrack = Math.max(35, Number(cycleLength || 28) + 10);
+  if (diffDays < 0 || diffDays >= maxTrack) return null;
+
+  const cycleDay = diffDays + 1;
+  let phaseId = 'follicular';
+  let phaseLabel = 'Первая половина (подъём сил)';
+  let shortPhase = 'Первая половина';
+
+  if (cycleDay <= 5) {
+    phaseId = 'menstrual';
+    phaseLabel = 'Начало цикла (спад сил естественен)';
+    shortPhase = 'Начало цикла';
+  } else if (cycleDay <= 13) {
+    phaseId = 'follicular';
+    phaseLabel = 'Первая половина (подъём сил)';
+    shortPhase = 'Первая половина';
+  } else if (cycleDay <= 16) {
+    phaseId = 'ovulatory';
+    phaseLabel = 'Середина цикла (пик ресурса)';
+    shortPhase = 'Середина цикла';
+  } else {
+    phaseId = 'luteal';
+    phaseLabel = 'Вторая половина (нужно больше бережности)';
+    shortPhase = 'Вторая половина';
+  }
+
+  return { cycleDay, phaseId, phaseLabel, shortPhase, lastStart };
+}
+
+/**
+ * Сравнение состояния в первую и вторую половину цикла
+ */
+export function computeCyclePhaseStats(series, recordsMap, cycleLength = 28) {
+  const firstHalf = [];
+  const secondHalf = [];
+
+  series.forEach((day) => {
+    const info = computeCycleInfo(day.date, recordsMap, cycleLength);
+    if (!info) return;
+    if (info.cycleDay <= 14) firstHalf.push(day.index);
+    else secondHalf.push(day.index);
+  });
+
+  if (firstHalf.length === 0 && secondHalf.length === 0) return null;
+
+  const firstAvg = firstHalf.length ? round(computeMean(firstHalf), 1) : null;
+  const secondAvg = secondHalf.length ? round(computeMean(secondHalf), 1) : null;
+  const diff =
+    firstAvg !== null && secondAvg !== null ? round(firstAvg - secondAvg, 1) : null;
+
+  return {
+    firstAvg,
+    secondAvg,
+    firstCount: firstHalf.length,
+    secondCount: secondHalf.length,
+    diff,
+  };
+}
+
+/**
+ * Генерация 1–3 живых текстовых наблюдений человеческим языком («Наблюдение дня»)
+ */
+export function generateNarrativeInsights(
+  { factorImpacts, sleepRegression, trendLabel, analyzedDays, cycleStats },
+  shoppingPauses = [],
+  recordsMap = {}
+) {
+  const list = [];
+
+  if (analyzedDays < 3) {
+    return [
+      {
+        id: 'calibrating',
+        tone: 'neutral',
+        title: 'Собираем первые наблюдения',
+        text: 'Через 3–4 дня записей здесь появятся первые выводы о том, что даёт вам силы, а что их забирает.',
+      },
+    ];
+  }
+
+  // 1. Главный источник сил (положительный эффект на завтра или в тот же день)
+  const positiveFactors = factorImpacts
+    .filter((f) => f.count >= 2 && (f.nextDayDelta ?? f.sameDayDelta ?? 0) >= 4)
+    .sort((a, b) => (b.nextDayDelta ?? b.sameDayDelta ?? 0) - (a.nextDayDelta ?? a.sameDayDelta ?? 0));
+
+  if (positiveFactors.length > 0) {
+    const top = positiveFactors[0];
+    const hasLag = top.nextDayDelta !== null && top.nextDayDelta >= 4;
+    const val = hasLag ? top.nextDayDelta : top.sameDayDelta;
+    list.push({
+      id: `pos_${top.id}`,
+      tone: 'positive',
+      title: `Источник восстановления: ${top.title}`,
+      text: hasLag
+        ? `На следующий день после «${top.title}» ваше состояние в среднем выше на +${val} пунктов.`
+        : `В дни с «${top.title}» ваше состояние в среднем выше на +${val} пунктов.`,
+    });
+  }
+
+  // 2. Что забирает силы (отрицательный эффект на завтра или на сон)
+  const drainingFactors = factorImpacts
+    .filter((f) => f.count >= 2 && (f.nextDayDelta ?? f.sameDayDelta ?? 0) <= -4)
+    .sort((a, b) => (a.nextDayDelta ?? a.sameDayDelta ?? 0) - (b.nextDayDelta ?? b.sameDayDelta ?? 0));
+
+  if (drainingFactors.length > 0) {
+    const drain = drainingFactors[0];
+    const hasLag = drain.nextDayDelta !== null && drain.nextDayDelta <= -4;
+    const val = Math.abs(hasLag ? drain.nextDayDelta : drain.sameDayDelta);
+    const sleepNote =
+      drain.sleepQualityDelta !== null && drain.sleepQualityDelta <= -0.5
+        ? ' и заметно хуже качество сна'
+        : '';
+    list.push({
+      id: `neg_${drain.id}`,
+      tone: 'caution',
+      title: `Просадка после «${drain.title}»`,
+      text: hasLag
+        ? `После «${drain.title}» состояние на следующий день ниже в среднем на ${val} пунктов${sleepNote}.`
+        : `В дни с «${drain.title}» ресурс ниже в среднем на ${val} пунктов${sleepNote}.`,
+    });
+  }
+
+  // 3. Связь сна и импульсивных покупок
+  if (Array.isArray(shoppingPauses) && shoppingPauses.length >= 2) {
+    let lowSleepCount = 0;
+    let matchedCount = 0;
+    shoppingPauses.forEach((p) => {
+      if (!p.createdAt) return;
+      const dateKey = getLocalDateKey(new Date(p.createdAt));
+      const rec = recordsMap[dateKey];
+      if (rec && Number.isFinite(Number(rec.sleepHours))) {
+        matchedCount += 1;
+        if (Number(rec.sleepHours) < 7) lowSleepCount += 1;
+      }
+    });
+    if (matchedCount >= 2 && lowSleepCount >= 2) {
+      list.push({
+        id: 'shopping_sleep',
+        tone: 'neutral',
+        title: 'Сон и импульсивные покупки',
+        text: `В ${lowSleepCount} из ${matchedCount} случаев, когда вы ставили покупку на 24-часовую паузу, сон накануне был меньше 7 часов.`,
+      });
+    }
+  }
+
+  // 4. Цикл или сон/тренд (добираем до 3 карточек)
+  if (list.length < 3 && cycleStats && cycleStats.diff !== null && Math.abs(cycleStats.diff) >= 4) {
+    list.push({
+      id: 'cycle_rhythm',
+      tone: 'neutral',
+      title: 'Ритм цикла',
+      text:
+        cycleStats.diff > 0
+          ? `Во второй половине цикла ваше среднее состояние на ${cycleStats.diff} пунктов ниже, чем в первой — это естественный фон, а не спад продуктивности.`
+          : `Во второй половине цикла ваше состояние держится даже ровнее (выше на ${Math.abs(cycleStats.diff)} пунктов).`,
+    });
+  }
+
+  if (list.length < 3 && sleepRegression && sleepRegression.k >= 2) {
+    list.push({
+      id: 'sleep_lift',
+      tone: 'positive',
+      title: 'Сон как опора',
+      text: `Каждый дополнительный час сна в среднем добавляет +${sleepRegression.k} пунктов к вашему состоянию на следующий день.`,
+    });
+  }
+
+  if (list.length === 0) {
+    list.push({
+      id: 'steady_trend',
+      tone: 'neutral',
+      title: trendLabel,
+      text: `За ${analyzedDays} дн. наблюдений пока нет резких перекосов по отдельным факторам. Продолжайте отмечать события дня, чтобы увидеть скрытые связи.`,
+    });
+  }
+
+  return list.slice(0, 3);
+}
+
+/**
  * Полный расчёт аналитики по словарю записей
  */
-export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true } = {}) {
+export function computeFullAnalytics(
+  recordsMap,
+  catalog,
+  { excludeSick = true, trackCycle = false, cycleLength = 28, shoppingPauses = [] } = {}
+) {
   const allSorted = Object.values(recordsMap || {})
     .filter((r) => r && r.date && (r.isSaved || (r.rituals && r.rituals.length > 0)))
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -425,7 +649,11 @@ export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true }
     else trendLabel = 'Ритм держится ровно';
   }
 
-  return {
+  const cycleStats = trackCycle
+    ? computeCyclePhaseStats(activeSeries, recordsMap, cycleLength)
+    : null;
+
+  const baseResult = {
     totalDays: allSorted.length,
     analyzedDays: activeSeries.length,
     sickDaysCount,
@@ -445,6 +673,12 @@ export function computeFullAnalytics(recordsMap, catalog, { excludeSick = true }
     movingAvg,
     diversity,
     factorImpacts,
+    cycleStats,
+  };
+
+  return {
+    ...baseResult,
+    insights: generateNarrativeInsights(baseResult, shoppingPauses, recordsMap),
   };
 }
 
@@ -500,6 +734,7 @@ export function generateDemoDataset21Days() {
       colorId: t.col,
       questionTag: null,
       feltAlive: t.e >= 7,
+      isCycleStart: idx === 1,
       note: '',
       isSaved: true,
       updatedAt: dt.toISOString(),

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MOOD_COLORS, SYMPTOMS_LIST } from '../data/brandingTokens';
 import { WEEKLY_QUESTIONS } from '../data/questionsData';
 import { formatFullRuDate, getLocalDateKey, parseDateKey } from '../services/storage';
-import { computeDayIndex, computeHydrationTarget } from '../services/analytics';
+import { computeCycleInfo, computeDayIndex, computeHydrationTarget } from '../services/analytics';
 import { IconDrop, IconPresence, IconShield, IconWind } from './RitualIcons';
 import { WelcomeBanner } from './WelcomeBanner';
 import { CocoonModal } from './CocoonModal';
@@ -12,6 +12,7 @@ export function DailyCheckin({
   selectedDate,
   onChangeDate,
   dayRecord,
+  allRecords,
   onUpdateDay,
   profile,
   baselineMean,
@@ -35,6 +36,9 @@ export function DailyCheckin({
   const deltaFromMean =
     baselineMean !== null ? Math.round((liveIndex - baselineMean) * 10) / 10 : null;
   const hydration = computeHydrationTarget(profile?.weight, dayRecord);
+  const cycleInfo = profile?.trackCycle
+    ? computeCycleInfo(selectedDate, allRecords, Number(profile.cycleLength || 28))
+    : null;
 
   const selectedColorObj =
     MOOD_COLORS.find((c) => c.id === dayRecord.colorId) || MOOD_COLORS[2];
@@ -428,6 +432,36 @@ export function DailyCheckin({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {profile?.trackCycle && (
+          <div
+            className="pt-3 border-t flex items-center justify-between gap-3"
+            style={{ borderColor: activeTheme.borderColor }}
+          >
+            <div className="min-w-0">
+              <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                {cycleInfo ? `День цикла: ${cycleInfo.cycleDay}` : 'Учёт цикла'}
+              </div>
+              <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                {cycleInfo ? cycleInfo.phaseLabel : 'Отметьте 1-й день цикла, чтобы считать фазу'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => patchDay({ isCycleStart: !dayRecord.isCycleStart }, true)}
+              className="px-3 py-1.5 rounded-xl border text-[11px] font-medium shrink-0 transition-colors"
+              style={{
+                backgroundColor: dayRecord.isCycleStart
+                  ? activeTheme.primary
+                  : activeTheme.surfaceContainer,
+                borderColor: dayRecord.isCycleStart ? activeTheme.primary : activeTheme.borderColor,
+                color: dayRecord.isCycleStart ? activeTheme.primaryText : activeTheme.textSecondary,
+              }}
+            >
+              {dayRecord.isCycleStart ? '1-й день ✓' : '1-й день цикла'}
+            </button>
           </div>
         )}
       </div>
