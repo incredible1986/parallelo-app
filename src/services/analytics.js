@@ -460,11 +460,106 @@ export function computeCyclePhaseStats(series, recordsMap, cycleLength = 28) {
   };
 }
 
+const WEEKDAY_NOM = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+const WEEKDAY_LOC = ['воскресеньям', 'понедельникам', 'вторникам', 'средам', 'четвергам', 'пятницам', 'субботам'];
+
 /**
- * Генерация 1–3 живых текстовых наблюдений человеческим языком («Наблюдение дня»)
+ * Анализ рабочей нагрузки и паттернов по дням недели:
+ * 1) Серия рабочих дней подряд без отдыха («пора взять выходной»)
+ * 2) Затяжной рабочий спад за 14 дней («пора в отпуск»)
+ * 3) Самый тяжёлый день недели («пятницы лучше разгрузить»)
+ */
+export function computeWorkAndWeekdayInsights(allSorted, activeSeries, mean) {
+  const alerts = [];
+  if (!allSorted || allSorted.length < 3) return alerts;
+
+  const isWorkDay = (r) => {
+    const rituals = r.rituals || [];
+    return rituals.includes('work') || rituals.includes('overtime');
+  };
+
+  // 1. Сколько рабочих дней подряд в самом конце истории
+  let consecutiveWork = 0;
+  for (let i = allSorted.length - 1; i >= 0; i--) {
+    if (isWorkDay(allSorted[i])) consecutiveWork += 1;
+    else break;
+  }
+
+  // 2. Анализ последних 14 дней на затяжной рабочий спад («пора в отпуск»)
+  const last14 = allSorted.slice(-14);
+  const workIn14 = last14.filter(isWorkDay).length;
+  const overtimeIn14 = last14.filter((r) => (r.rituals || []).includes('overtime')).length;
+  const recent7Active = activeSeries.slice(-7);
+  const recent7Mean = recent7Active.length >= 3 ? computeMean(recent7Active.map((d) => d.index)) : null;
+
+  if (
+    last14.length >= 10 &&
+    (workIn14 >= 10 || overtimeIn14 >= 3) &&
+    mean !== null &&
+    recent7Mean !== null &&
+    recent7Mean <= mean - 5
+  ) {
+    alerts.push({
+      id: 'vacation_needed',
+      tone: 'caution',
+      title: 'Похоже, пора в отпуск',
+      text: `За последние две недели накопилась усталость от плотного графика (рабочих дней: ${workIn14}, переработок: ${overtimeIn14}), а состояние держится ниже вашей нормы. Телу нужна перезагрузка хотя бы на пару дней.`,
+    });
+  } else if (consecutiveWork >= 6) {
+    const last3 = allSorted.slice(-3);
+    const last3Mean = computeMean(last3.map((d) => d.index));
+    const isDropping = mean !== null ? last3Mean <= mean : last3[last3.length - 1].index < last3[0].index;
+    if (isDropping) {
+      alerts.push({
+        id: 'day_off_needed',
+        tone: 'caution',
+        title: 'Пора взять выходной',
+        text: `Вы работаете уже ${consecutiveWork} дней подряд без паузы, и силы постепенно снижаются. Хороший момент устроить полноценный день отдыха.`,
+      });
+    }
+  }
+
+  // 3. Паттерн по дням недели (если накоплено >= 14 активных дней)
+  if (activeSeries.length >= 14 && mean !== null) {
+    const byDay = Array.from({ length: 7 }, () => []);
+    activeSeries.forEach((d) => {
+      const dow = parseDateKey(d.date).getDay();
+      byDay[dow].push(d.index);
+    });
+
+    let worstDow = -1;
+    let worstAvg = Infinity;
+    byDay.forEach((vals, dow) => {
+      if (vals.length >= 2) {
+        const avg = computeMean(vals);
+        if (avg < worstAvg) {
+          worstAvg = avg;
+          worstDow = dow;
+        }
+      }
+    });
+
+    if (worstDow !== -1 && mean - worstAvg >= 6) {
+      const diff = round(mean - worstAvg, 1);
+      const nom = WEEKDAY_NOM[worstDow];
+      const titleNom = nom.charAt(0).toUpperCase() + nom.slice(1);
+      alerts.push({
+        id: `weekday_${worstDow}`,
+        tone: 'neutral',
+        title: `${titleNom} даётся тяжелее всего`,
+        text: `По ${WEEKDAY_LOC[worstDow]} ваше состояние в среднем ниже на ${diff} пунктов. Возможно, этот день недели стоит разгрузить от сложных задач.`,
+      });
+    }
+  }
+
+  return alerts;
+}
+
+/**
+ * Генерация 1–4 живых текстовых наблюдений человеческим языком («Наблюдение дня»)
  */
 export function generateNarrativeInsights(
-  { factorImpacts, sleepRegression, trendLabel, analyzedDays, cycleStats },
+  { factorImpacts, sleepRegression, trendLabel, analyzedDays, cycleStats, allSeries, series, mean },
   shoppingPauses = [],
   recordsMap = {}
 ) {
@@ -480,6 +575,10 @@ export function generateNarrativeInsights(
       },
     ];
   }
+
+  // 0. Сигналы про выходной, отпуск или тяжёлый день недели
+  const workAlerts = computeWorkAndWeekdayInsights(allSeries, series, mean);
+  workAlerts.forEach((a) => list.push(a));
 
   // 1. Главный источник сил (положительный эффект на завтра или в тот же день)
   const positiveFactors = factorImpacts
@@ -577,7 +676,7 @@ export function generateNarrativeInsights(
     });
   }
 
-  return list.slice(0, 3);
+  return list.slice(0, 4);
 }
 
 /**
@@ -789,26 +888,26 @@ export function generateDemoDataset21Days() {
 
   // Детерминированный 21-дневный сценарий: баня и близость дают подъём, алкоголь и недосып снижают ресурс, 2 дня простуды
   const template = [
-    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', r: ['warm_plate', 'tea', 'alcohol'], col: 'sage' },
-    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['warm_plate'], col: 'stone' },
-    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['walk', 'tea', 'presence'], col: 'azure' },
-    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate'], col: 'amber' },
+    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', r: ['warm_plate', 'tea', 'work', 'alcohol'], col: 'sage' },
+    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['warm_plate', 'work', 'overtime'], col: 'stone' },
+    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['walk', 'tea', 'presence', 'work'], col: 'azure' },
+    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'friends'], col: 'amber' },
     { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
-    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate'], col: 'sage' },
-    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'alcohol'], col: 'indigo' },
-    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea'], col: 'stone' },
+    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
+    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate', 'work'], col: 'sage' },
+    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo' },
+    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea', 'work', 'overtime'], col: 'stone' },
     { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
     { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
-    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', r: ['walk', 'warm_plate'], col: 'sage' },
-    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['banya', 'tea', 'intimacy'], col: 'azure' },
+    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', r: ['walk', 'warm_plate', 'work'], col: 'sage' },
+    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['banya', 'tea', 'intimacy', 'friends'], col: 'azure' },
     { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['presence', 'tea'], col: 'azure' },
-    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping', 'alcohol'], col: 'indigo' },
-    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk'], col: 'stone' },
-    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence'], col: 'sage' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['presence', 'tea', 'work'], col: 'azure' },
+    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping', 'work', 'alcohol'], col: 'indigo' },
+    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk', 'work', 'overtime'], col: 'stone' },
+    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence', 'work'], col: 'sage' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
+    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];
 

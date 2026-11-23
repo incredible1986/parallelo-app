@@ -142,6 +142,7 @@ export function RitualLogger({
   };
 
   const anchorRituals = RITUALS_CATALOG.filter((r) => r.group === 'anchors');
+  const workSocialRituals = RITUALS_CATALOG.filter((r) => r.group === 'work_social');
   const bodySubstancesRituals = RITUALS_CATALOG.filter((r) => r.group === 'body_substances');
 
   const activeWaitingPauses = (shoppingPauses || []).filter((p) => p.status === 'waiting');
@@ -273,7 +274,20 @@ export function RitualLogger({
         <div className="space-y-2">{anchorRituals.map(renderRitualButton)}</div>
       </div>
 
-      {/* Группа 2: Близость и вещества */}
+      {/* Группа 2: Работа и общение */}
+      <div className="space-y-2">
+        <div>
+          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+            Работа и общение
+          </span>
+          <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
+            Помогает замечать усталость по дням недели и вовремя брать выходной.
+          </p>
+        </div>
+        <div className="space-y-2">{workSocialRituals.map(renderRitualButton)}</div>
+      </div>
+
+      {/* Группа 3: Близость и вещества */}
       <div className="space-y-2">
         <div>
           <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
