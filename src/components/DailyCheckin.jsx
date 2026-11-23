@@ -219,31 +219,39 @@ export function DailyCheckin({
             <div className="flex items-baseline gap-2.5 mt-1">
               <span
                 className="text-4xl font-semibold tabular-nums leading-none"
-                style={{ color: activeTheme.primary }}
+                style={{ color: dayRecord.isSaved ? activeTheme.primary : activeTheme.textMuted }}
               >
-                {liveIndex}
+                {dayRecord.isSaved ? liveIndex : '—'}
               </span>
-              <span className="text-xs" style={{ color: activeTheme.textMuted }}>
-                из 100
-              </span>
-              {deltaFromMean !== null && (
-                <span
-                  className="text-xs tabular-nums px-2 py-0.5 rounded-lg"
-                  style={{
-                    backgroundColor: activeTheme.surfaceContainer,
-                    color:
-                      deltaFromMean > 0
-                        ? activeTheme.accent
+              {dayRecord.isSaved ? (
+                <>
+                  <span className="text-xs" style={{ color: activeTheme.textMuted }}>
+                    из 100
+                  </span>
+                  {deltaFromMean !== null && (
+                    <span
+                      className="text-xs tabular-nums px-2 py-0.5 rounded-lg"
+                      style={{
+                        backgroundColor: activeTheme.surfaceContainer,
+                        color:
+                          deltaFromMean > 0
+                            ? activeTheme.accent
+                            : deltaFromMean < 0
+                            ? activeTheme.danger
+                            : activeTheme.textSecondary,
+                      }}
+                    >
+                      {deltaFromMean > 0
+                        ? `+${deltaFromMean} к вашей норме`
                         : deltaFromMean < 0
-                        ? activeTheme.danger
-                        : activeTheme.textSecondary,
-                  }}
-                >
-                  {deltaFromMean > 0
-                    ? `+${deltaFromMean} к вашей норме`
-                    : deltaFromMean < 0
-                    ? `${deltaFromMean} от вашей нормы`
-                    : 'на уровне нормы'}
+                        ? `${deltaFromMean} от вашей нормы`
+                        : 'на уровне нормы'}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs" style={{ color: activeTheme.textSecondary }}>
+                  Оцените день ниже, чтобы увидеть картину
                 </span>
               )}
             </div>

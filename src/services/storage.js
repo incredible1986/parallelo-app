@@ -10,9 +10,28 @@ const KEYS = {
   PROFILE: 'parallelo_v2_profile',
   PAUSES: 'parallelo_v2_shopping_pauses',
   CUSTOM_FACTORS: 'parallelo_v2_custom_factors',
+  PIN_HASH: 'parallelo_v2_pin_hash',
   UI: 'parallelo_v2_ui',
   MIGRATED: 'parallelo_v2_migrated_v1',
 };
+
+async function computeSaltedPinHash(pin, salt) {
+  const input = `${salt}::parallelo::${pin}`;
+  if (typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined') {
+    const bytes = new TextEncoder().encode(input);
+    const buf = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  // Fallback для незащищённого http://IP в локальной сети
+  let h1 = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h1 ^= input.charCodeAt(i);
+    h1 = Math.imul(h1, 0x01000193);
+  }
+  return `fnv_${(h1 >>> 0).toString(16)}`;
+}
 
 export function getLocalDateKey(date = new Date()) {
   const d = date instanceof Date ? date : new Date(date);
@@ -283,13 +302,38 @@ export const StorageService = {
   },
 
   importBackup(rawJson) {
-    const parsed = JSON.parse(rawJson);
-    if (!parsed || typeof parsed !== 'object' || !parsed.records) {
-      throw new Error('Неверный формат файла резервной копии Parallelo.');
+    let parsed;
+    try {
+      parsed = JSON.parse(rawJson);
+    } catch {
+      throw new Error('Файл повреждён или не является корректным JSON.');
     }
-    const mergedRecords = { ...this.getAllRecords(), ...parsed.records };
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Неверная структура резервной копии.');
+    }
+    if (parsed.app !== 'Parallelo' || typeof parsed.schemaVersion !== 'number') {
+      throw new Error('Этот файл не является резервной копией Parallelo.');
+    }
+    if (!parsed.records || typeof parsed.records !== 'object' || Array.isArray(parsed.records)) {
+      throw new Error('В файле отсутствуют корректные записи наблюдений.');
+    }
+
+    const sanitizedRecords = {};
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    Object.entries(parsed.records).forEach(([key, val]) => {
+      if (dateRe.test(key) && val && typeof val === 'object' && !Array.isArray(val)) {
+        sanitizedRecords[key] = { ...createEmptyDayRecord(key), ...val, date: key };
+      }
+    });
+
+    if (Object.keys(sanitizedRecords).length === 0 && Object.keys(parsed.records).length > 0) {
+      throw new Error('Записи в файле имеют повреждённый формат дат.');
+    }
+
+    const mergedRecords = { ...this.getAllRecords(), ...sanitizedRecords };
     this.set(KEYS.RECORDS, mergedRecords);
-    if (parsed.profile) {
+    if (parsed.profile && typeof parsed.profile === 'object' && !Array.isArray(parsed.profile)) {
       this.set(KEYS.PROFILE, { ...this.getProfile(), ...parsed.profile });
     }
     if (Array.isArray(parsed.shoppingPauses)) {
@@ -298,7 +342,92 @@ export const StorageService = {
     if (Array.isArray(parsed.customFactors)) {
       this.set(KEYS.CUSTOM_FACTORS, parsed.customFactors);
     }
-    return Object.keys(mergedRecords).length;
+    return Object.keys(sanitizedRecords).length;
+  },
+
+  exportCsv(catalog = []) {
+    const titleMap = Object.fromEntries(catalog.map((c) => [c.id, c.title]));
+    const escapeCsv = (v) => {
+      const s = String(v ?? '').replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const header = [
+      'Дата',
+      'Состояние',
+      'Энергия',
+      'Спокойствие',
+      'Комфорт',
+      'Сон_ч',
+      'Качество_сна',
+      'Самочувствие',
+      'Пульс',
+      'Факторы',
+      'Заметка',
+    ].join(',');
+
+    const records = Object.values(this.getAllRecords())
+      .filter((r) => r && (r.isSaved || (r.rituals && r.rituals.length > 0)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const rows = records.map((r) => {
+      const score = Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            10 *
+              (0.32 * Number(r.energy ?? 6) +
+                0.28 * Number(r.calm ?? 6) +
+                0.25 * Number(r.bodyComfort ?? 6) +
+                0.15 * (Number(r.sleepQuality ?? 3) * 2))
+          )
+        )
+      );
+      const factorsText = (r.rituals || []).map((id) => titleMap[id] || id).join('; ');
+      return [
+        r.date,
+        score,
+        r.energy ?? '',
+        r.calm ?? '',
+        r.bodyComfort ?? '',
+        r.sleepHours ?? '',
+        r.sleepQuality ?? '',
+        r.wellbeing ?? '',
+        r.restingHr ?? '',
+        factorsText,
+        r.note ?? '',
+      ]
+        .map(escapeCsv)
+        .join(',');
+    });
+
+    return `\uFEFF${[header, ...rows].join('\n')}`;
+  },
+
+  hasPin() {
+    const saved = this.get(KEYS.PIN_HASH, null);
+    return Boolean(saved && saved.hash && saved.salt);
+  },
+
+  async setPin(pin) {
+    const clean = String(pin || '').trim();
+    if (!/^\d{4}$/.test(clean)) {
+      throw new Error('PIN-код должен состоять из 4 цифр.');
+    }
+    const salt = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const hash = await computeSaltedPinHash(clean, salt);
+    this.set(KEYS.PIN_HASH, { salt, hash });
+  },
+
+  async verifyPin(pin) {
+    const saved = this.get(KEYS.PIN_HASH, null);
+    if (!saved || !saved.hash || !saved.salt) return true;
+    const hash = await computeSaltedPinHash(String(pin || '').trim(), saved.salt);
+    return hash === saved.hash;
+  },
+
+  clearPin() {
+    this.remove(KEYS.PIN_HASH);
   },
 
   resetAllParalleloData() {

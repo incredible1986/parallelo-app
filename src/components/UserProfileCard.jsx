@@ -2,15 +2,16 @@ import React, { useState, useRef } from 'react';
 import { PALETTES, SEASONS } from '../data/brandingTokens';
 import { StorageService } from '../services/storage';
 import { computeHydrationTarget } from '../services/analytics';
-import { IconDownload, IconDrop, IconUpload } from './RitualIcons';
+import { IconDownload, IconDrop, IconShield, IconUpload } from './RitualIcons';
 
 /**
- * Профиль, темы, ориентиры тела, резервное копирование и статус возможностей.
+ * Профиль, темы, ориентиры тела, PIN-защита, резервное копирование и дисклеймер.
  */
 export function UserProfileCard({
   activeTheme,
   onSelectTheme,
   profile,
+  catalog = [],
   onUpdateProfile,
   onDataImportedOrReset,
 }) {
@@ -21,6 +22,9 @@ export function UserProfileCard({
   const [excludeSick, setExcludeSick] = useState(profile.excludeSickFromBaseline ?? true);
   const [trackCycle, setTrackCycle] = useState(Boolean(profile.trackCycle));
   const [cycleLength, setCycleLength] = useState(Number(profile.cycleLength || 28));
+  const [hasPin, setHasPin] = useState(() => StorageService.hasPin());
+  const [isSettingPin, setIsSettingPin] = useState(false);
+  const [pinInput, setPinInput] = useState('');
   const [notice, setNotice] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -55,7 +59,40 @@ export function UserProfileCard({
     a.download = `parallelo-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    flashNotice('Резервная копия скачана.');
+    flashNotice('Резервная копия JSON скачана.');
+  };
+
+  const handleExportCsv = () => {
+    const csv = StorageService.exportCsv(catalog);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `parallelo-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flashNotice('Таблица CSV скачана.');
+  };
+
+  const handleSavePin = async (e) => {
+    e.preventDefault();
+    try {
+      await StorageService.setPin(pinInput);
+      setHasPin(true);
+      setIsSettingPin(false);
+      setPinInput('');
+      flashNotice('PIN-код установлен. При следующем открытии приложение запросит его.');
+    } catch (err) {
+      flashNotice(err.message);
+    }
+  };
+
+  const handleDisablePin = () => {
+    StorageService.clearPin();
+    setHasPin(false);
+    setIsSettingPin(false);
+    setPinInput('');
+    flashNotice('PIN-код отключён.');
   };
 
   const handleImportFile = (e) => {
@@ -399,7 +436,7 @@ export function UserProfileCard({
         </button>
       </div>
 
-      {/* 3. Резервное копирование */}
+      {/* 3. Защита PIN-кодом и резервное копирование */}
       <div
         className="p-4 rounded-2xl border space-y-3"
         style={{
@@ -407,12 +444,83 @@ export function UserProfileCard({
           borderColor: activeTheme.borderColor,
         }}
       >
-        <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <IconShield className="w-4 h-4" style={{ color: activeTheme.primary }} />
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Блокировка по PIN-коду
+            </span>
+          </div>
+          {hasPin ? (
+            <button
+              type="button"
+              onClick={handleDisablePin}
+              className="text-[11px] px-2.5 py-1 rounded-lg border"
+              style={{ borderColor: activeTheme.borderColor, color: activeTheme.danger }}
+            >
+              Отключить PIN
+            </button>
+          ) : (
+            !isSettingPin && (
+              <button
+                type="button"
+                onClick={() => setIsSettingPin(true)}
+                className="text-[11px] px-2.5 py-1 rounded-lg border"
+                style={{ borderColor: activeTheme.borderColor, color: activeTheme.primary }}
+              >
+                Установить PIN
+              </button>
+            )
+          )}
+        </div>
+
+        {isSettingPin && (
+          <form onSubmit={handleSavePin} className="flex items-center gap-2 pt-1 animate-fade-in">
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="4 цифры"
+              autoFocus
+              className="w-28 text-center tracking-widest text-xs p-2 rounded-xl border focus:outline-none"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+                color: activeTheme.textPrimary,
+              }}
+            />
+            <button
+              type="submit"
+              disabled={pinInput.length !== 4}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold ${
+                pinInput.length !== 4 ? 'opacity-40 cursor-not-allowed' : ''
+              }`}
+              style={{ backgroundColor: activeTheme.primary, color: activeTheme.primaryText }}
+            >
+              Сохранить
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSettingPin(false);
+                setPinInput('');
+              }}
+              className="px-2 py-2 text-xs"
+              style={{ color: activeTheme.textSecondary }}
+            >
+              Отмена
+            </button>
+          </form>
+        )}
+
+        <div className="pt-2 border-t" style={{ borderColor: activeTheme.borderColor }}>
           <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
-            Сохранение и перенос данных
+            Сохранение и экспорт данных
           </span>
-          <p className="text-xs mt-1 leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-            Все записи хранятся прямо у вас на устройстве. Можно скачать резервную копию в файл, чтобы не потерять историю.
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: activeTheme.textMuted }}>
+            Внимание: файлы экспорта содержат ваши личные записи (самочувствие, вещества, цикл) в открытом виде — храните их в надёжном месте.
           </p>
         </div>
 
@@ -428,12 +536,12 @@ export function UserProfileCard({
             }}
           >
             <IconDownload className="w-3.5 h-3.5" />
-            Скачать копию
+            Копия JSON
           </button>
 
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleExportCsv}
             className="py-2.5 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
             style={{
               backgroundColor: activeTheme.surfaceContainer,
@@ -441,17 +549,31 @@ export function UserProfileCard({
               color: activeTheme.textPrimary,
             }}
           >
-            <IconUpload className="w-3.5 h-3.5" />
-            Загрузить копию
+            <IconDownload className="w-3.5 h-3.5" />
+            Таблица CSV
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            onChange={handleImportFile}
-            className="hidden"
-          />
         </div>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full py-2.5 px-3 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+          style={{
+            backgroundColor: activeTheme.surfaceContainer,
+            borderColor: activeTheme.borderColor,
+            color: activeTheme.textPrimary,
+          }}
+        >
+          <IconUpload className="w-3.5 h-3.5" />
+          Загрузить копию JSON
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          onChange={handleImportFile}
+          className="hidden"
+        />
 
         <div className="pt-2 border-t" style={{ borderColor: activeTheme.borderColor }}>
           <button
@@ -468,7 +590,7 @@ export function UserProfileCard({
         </div>
       </div>
 
-      {/* 4. Статус возможностей */}
+      {/* 4. Статус возможностей и дисклеймер */}
       <div
         className="p-4 rounded-2xl border space-y-2 text-[11px]"
         style={{
@@ -494,6 +616,9 @@ export function UserProfileCard({
           <span>Синхронизация с часами и уведомления</span>
           <span style={{ color: activeTheme.textMuted }}>В версии для Android</span>
         </div>
+        <p className="pt-2 border-t text-[10px] leading-relaxed" style={{ borderColor: activeTheme.borderColor, color: activeTheme.textMuted }}>
+          Parallelo — инструмент личных наблюдений и саморефлексии, не является медицинским изделием и не заменяет консультацию врача.
+        </p>
       </div>
     </div>
   );

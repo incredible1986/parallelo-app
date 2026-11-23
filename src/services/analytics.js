@@ -700,14 +700,15 @@ export function computeFullAnalytics(
     ? allSorted.filter((r) => r.wellbeing !== 'sick')
     : allSorted;
 
+  const hasEnoughForTrends = activeSeries.length >= 5;
   const indices = activeSeries.map((s) => s.index);
   const mean = indices.length ? round(computeMean(indices), 1) : null;
-  const stdDev = indices.length >= 2 ? round(computeStdDev(indices), 1) : null;
+  const stdDev = hasEnoughForTrends ? round(computeStdDev(indices), 1) : null;
   const cv = mean && stdDev !== null && mean > 0 ? round((stdDev / mean) * 100, 1) : null;
 
-  // Линейная регрессия тренда во времени: W(t) = a + k·t
+  // Линейная регрессия тренда во времени: только от 5+ наблюдений
   const timeXs = activeSeries.map((_, i) => i);
-  const trendRegression = activeSeries.length >= 2 ? computeLinearRegression(timeXs, indices) : null;
+  const trendRegression = hasEnoughForTrends ? computeLinearRegression(timeXs, indices) : null;
 
   // Регрессия Сон(t) -> Ресурс(t+1)
   const byDate = new Map(activeSeries.map((s) => [s.date, s]));
@@ -734,14 +735,14 @@ export function computeFullAnalytics(
   const diversity = computeDistinctDiversity(allSorted, catalog.length);
   const factorImpacts = computeFactorImpacts(activeSeries, catalog);
 
-  let stabilityLabel = 'Собираем наблюдения';
-  if (stdDev !== null) {
+  let stabilityLabel = 'Нужно от 5 дней наблюдений';
+  if (hasEnoughForTrends && stdDev !== null) {
     if (stdDev < 8) stabilityLabel = 'Ровный ритм';
     else if (stdDev <= 14) stabilityLabel = 'Умеренные перепады';
     else stabilityLabel = 'Заметные качели';
   }
 
-  let trendLabel = 'Нужно больше дней для оценки';
+  let trendLabel = 'Тренд появится от 5 дней';
   if (trendRegression) {
     if (trendRegression.k >= 0.25) trendLabel = 'Состояние постепенно растёт';
     else if (trendRegression.k <= -0.25) trendLabel = 'Постепенно накапливается усталость';
@@ -753,10 +754,12 @@ export function computeFullAnalytics(
     : null;
 
   const warmMemories = extractWarmMemories(recordsMap);
+  const weeklyDigest = computeWeeklyDigest(activeSeries, catalog);
 
   const baseResult = {
     totalDays: allSorted.length,
     analyzedDays: activeSeries.length,
+    hasEnoughForTrends,
     sickDaysCount,
     series: activeSeries,
     allSeries: allSorted,
@@ -776,11 +779,46 @@ export function computeFullAnalytics(
     factorImpacts,
     cycleStats,
     warmMemories,
+    weeklyDigest,
   };
 
   return {
     ...baseResult,
     insights: generateNarrativeInsights(baseResult, shoppingPauses, recordsMap),
+  };
+}
+
+/**
+ * Недельный дайджест: итоги последних 7 записей (хорошие дни, средний сон, частый якорь)
+ */
+export function computeWeeklyDigest(activeSeries, catalog = []) {
+  if (!activeSeries || activeSeries.length < 3) return null;
+  const last7 = activeSeries.slice(-7);
+  const titleMap = Object.fromEntries(catalog.map((c) => [c.id, c.title]));
+
+  const goodDays = last7.filter((d) => d.index >= 75).length;
+  const sleepValues = last7
+    .map((d) => Number(d.sleepHours))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  const avgSleep = sleepValues.length ? round(computeMean(sleepValues), 1) : null;
+
+  const counts = {};
+  last7.forEach((d) => {
+    (d.rituals || []).forEach((id) => {
+      if (id !== 'alcohol' && id !== 'substances' && id !== 'overtime' && id !== 'work') {
+        counts[id] = (counts[id] || 0) + 1;
+      }
+    });
+  });
+
+  const topEntry = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  const topAnchor = topEntry ? { title: titleMap[topEntry[0]] || topEntry[0], count: topEntry[1] } : null;
+
+  return {
+    daysCount: last7.length,
+    goodDays,
+    avgSleep,
+    topAnchor,
   };
 }
 

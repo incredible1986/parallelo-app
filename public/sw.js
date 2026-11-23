@@ -1,9 +1,15 @@
-const CACHE_NAME = 'parallelo-pwa-v2';
+const CACHE_NAME = 'parallelo-pwa-v3';
+const PRECACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './branding/parallelo-p-3d.jpg',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(['./', './index.html', './manifest.webmanifest', './branding/parallelo-p-3d.jpg'])
+      Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
     )
   );
   self.skipWaiting();
@@ -30,8 +36,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          }
           return response;
         })
         .catch(() => caches.match('./index.html'))

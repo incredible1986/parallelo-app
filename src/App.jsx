@@ -12,6 +12,7 @@ import { DailyCheckin } from './components/DailyCheckin';
 import { RitualLogger } from './components/RitualLogger';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { UserProfileCard } from './components/UserProfileCard';
+import { PinLockScreen } from './components/PinLockScreen';
 import {
   IconChart,
   IconPulse,
@@ -29,6 +30,7 @@ export default function App() {
   const [customFactors, setCustomFactors] = useState(() => StorageService.getCustomFactors());
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey());
   const [activeTab, setActiveTab] = useState('today');
+  const [isUnlocked, setIsUnlocked] = useState(() => !StorageService.hasPin());
 
   const activeTheme = PALETTES[profile.themeId] || PALETTES.obsidian;
   const fullCatalog = useMemo(() => [...RITUALS_CATALOG, ...customFactors], [customFactors]);
@@ -108,6 +110,10 @@ export default function App() {
     { id: 'profile', label: 'Профиль', Icon: IconUser },
   ];
 
+  if (!isUnlocked) {
+    return <PinLockScreen activeTheme={activeTheme} onUnlock={() => setIsUnlocked(true)} />;
+  }
+
   return (
     <div
       className="min-h-screen transition-colors duration-300 flex flex-col items-center font-sans"
@@ -177,6 +183,7 @@ export default function App() {
               activeTheme={activeTheme}
               onSelectTheme={handleSelectTheme}
               profile={profile}
+              catalog={fullCatalog}
               onUpdateProfile={handleUpdateProfile}
               onDataImportedOrReset={handleRefreshFromStorage}
             />

@@ -231,20 +231,42 @@ export function AnalyticsDashboard({
         </div>
       </div>
 
-      {/* Индикатор режима демо или набора данных */}
+      {/* Индикатор режима демо или онбординг ожиданий */}
       {isDemoMode ? (
         <div
-          className="px-3.5 py-2.5 rounded-xl border text-xs"
+          className="px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs"
           style={{
             backgroundColor: activeTheme.surfaceElevated,
             borderColor: activeTheme.primary,
             color: activeTheme.textPrimary,
           }}
         >
-          Пример на тестовых данных за 21 день. Ваши личные записи остаются нетронутыми.
+          <div>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded mr-2"
+              style={{
+                backgroundColor: activeTheme.primary,
+                color: activeTheme.primaryText,
+              }}
+            >
+              Демо-данные
+            </span>
+            <span>Тестовая выборка 21 день</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsDemoMode(false);
+              setSelectedPointIdx(null);
+            }}
+            className="text-[11px] font-medium underline shrink-0"
+            style={{ color: activeTheme.primary }}
+          >
+            Мои данные
+          </button>
         </div>
       ) : (
-        realCount < 7 && (
+        realCount < 5 && (
           <div
             className="p-3.5 rounded-xl border text-xs space-y-2"
             style={{
@@ -254,24 +276,24 @@ export function AnalyticsDashboard({
           >
             <div className="flex items-center justify-between">
               <span className="font-medium" style={{ color: activeTheme.textPrimary }}>
-                Собираем вашу обычную норму
+                Первые выводы появятся через 5–7 дней
               </span>
               <span className="tabular-nums text-[11px]" style={{ color: activeTheme.primary }}>
-                {realCount} из 7 дней
+                {realCount} из 5
               </span>
             </div>
             <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: activeTheme.borderColor }}>
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${Math.min(100, (realCount / 7) * 100)}%`,
+                  width: `${Math.min(100, (realCount / 5) * 100)}%`,
                   backgroundColor: activeTheme.primary,
                 }}
               />
             </div>
             <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
-              Чтобы уверенно находить закономерности, нужно хотя бы 7 отмеченных дней.
-              Нажмите <strong style={{ color: activeTheme.textPrimary }}>«Демо 21д»</strong> выше, чтобы посмотреть, как будут выглядеть ваши графики.
+              Мы уже собираем ваши наблюдения. А пока можно нажать{' '}
+              <strong style={{ color: activeTheme.textPrimary }}>«Демо 21д»</strong>, чтобы посмотреть графики и связи на примере.
             </p>
           </div>
         )
@@ -286,9 +308,16 @@ export function AnalyticsDashboard({
             borderColor: activeTheme.borderColor,
           }}
         >
-          <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
-            Наблюдение дня
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+              Наблюдение дня
+            </span>
+            {analytics.analyzedDays > 0 && (
+              <span className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                на основе {analytics.analyzedDays} дн.
+              </span>
+            )}
+          </div>
           <div className="space-y-2">
             {analytics.insights.map((ins) => {
               const accentBar =
@@ -316,6 +345,46 @@ export function AnalyticsDashboard({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* БЛОК 0.5: Итоги последних 7 дней (Недельный дайджест) */}
+      {analytics.weeklyDigest && (
+        <div
+          className="p-4 rounded-2xl border space-y-2"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+              Итоги последних 7 дней
+            </span>
+            <span className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+              {analytics.weeklyDigest.daysCount} записей
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 rounded-xl border" style={{ backgroundColor: activeTheme.surfaceContainer, borderColor: activeTheme.borderColor }}>
+              <div className="text-base font-semibold tabular-nums" style={{ color: activeTheme.accent }}>
+                {analytics.weeklyDigest.goodDays}
+              </div>
+              <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>хороших дней</div>
+            </div>
+            <div className="p-2 rounded-xl border" style={{ backgroundColor: activeTheme.surfaceContainer, borderColor: activeTheme.borderColor }}>
+              <div className="text-base font-semibold tabular-nums" style={{ color: activeTheme.textPrimary }}>
+                {analytics.weeklyDigest.avgSleep ? `${analytics.weeklyDigest.avgSleep} ч` : '—'}
+              </div>
+              <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>средний сон</div>
+            </div>
+            <div className="p-2 rounded-xl border" style={{ backgroundColor: activeTheme.surfaceContainer, borderColor: activeTheme.borderColor }}>
+              <div className="text-xs font-medium truncate leading-6" style={{ color: activeTheme.primary }}>
+                {analytics.weeklyDigest.topAnchor ? analytics.weeklyDigest.topAnchor.title : '—'}
+              </div>
+              <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>частая опора</div>
+            </div>
           </div>
         </div>
       )}
