@@ -653,6 +653,8 @@ export function computeFullAnalytics(
     ? computeCyclePhaseStats(activeSeries, recordsMap, cycleLength)
     : null;
 
+  const warmMemories = extractWarmMemories(recordsMap);
+
   const baseResult = {
     totalDays: allSorted.length,
     analyzedDays: activeSeries.length,
@@ -674,11 +676,106 @@ export function computeFullAnalytics(
     diversity,
     factorImpacts,
     cycleStats,
+    warmMemories,
   };
 
   return {
     ...baseResult,
     insights: generateNarrativeInsights(baseResult, shoppingPauses, recordsMap),
+  };
+}
+
+/**
+ * «Погреб лета»: отбирает прошлые дни с высоким состоянием (>= 78),
+ * отдавая приоритет записям с личной заметкой.
+ */
+export function extractWarmMemories(recordsMap, excludeDate = null) {
+  return Object.values(recordsMap || {})
+    .filter((r) => {
+      if (!r || !r.date || r.date === excludeDate) return false;
+      if (r.wellbeing === 'sick') return false;
+      if (!r.isSaved && !(r.rituals && r.rituals.length > 0) && !(r.note && r.note.trim())) {
+        return false;
+      }
+      return computeDayIndex(r) >= 78;
+    })
+    .map((r) => ({
+      date: r.date,
+      index: computeDayIndex(r),
+      note: (r.note || '').trim(),
+      rituals: r.rituals || [],
+      questionTag:
+        r.questionTag && r.questionTag !== 'Пропустить' && r.questionTag !== 'Не помню'
+          ? r.questionTag
+          : null,
+    }))
+    .sort((a, b) => {
+      const aHasNote = a.note.length > 0 ? 1 : 0;
+      const bHasNote = b.note.length > 0 ? 1 : 0;
+      if (bHasNote !== aHasNote) return bHasNote - aHasNote;
+      return b.index - a.index;
+    });
+}
+
+/**
+ * «Свежий воздух» и опора при спаде:
+ * определяет, есть ли сейчас спад (усталость/болезнь или 3+ дня подряд ниже нормы),
+ * и возвращает 1–2 проверенных личных фактора восстановления + тёплые воспоминания.
+ */
+export function computeRecoverySupport(
+  recordsMap,
+  catalog,
+  selectedDate,
+  currentWellbeing,
+  baselineMean
+) {
+  const sorted = Object.values(recordsMap || {})
+    .filter((r) => r && r.date && r.date <= selectedDate && (r.isSaved || (r.rituals && r.rituals.length > 0)))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let consecutiveLow = 0;
+  const threshold = baselineMean !== null ? baselineMean - 4 : 60;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const idx = computeDayIndex(sorted[i]);
+    if (idx < threshold || sorted[i].wellbeing === 'tired') {
+      consecutiveLow += 1;
+    } else {
+      break;
+    }
+  }
+
+  const isDip =
+    currentWellbeing === 'sick' ||
+    currentWellbeing === 'tired' ||
+    consecutiveLow >= 3;
+
+  if (!isDip) {
+    return { isDip: false, consecutiveLow, recoveryAnchors: [], warmMemories: [] };
+  }
+
+  const activeSeries = sorted
+    .filter((r) => r.wellbeing !== 'sick')
+    .map((r) => ({ ...r, index: computeDayIndex(r) }));
+
+  const impacts = computeFactorImpacts(activeSeries, catalog);
+  const recoveryAnchors = impacts
+    .filter(
+      (f) =>
+        f.id !== 'alcohol' &&
+        f.id !== 'substances' &&
+        f.count >= 2 &&
+        (f.nextDayDelta ?? f.sameDayDelta ?? 0) >= 3
+    )
+    .sort((a, b) => (b.nextDayDelta ?? b.sameDayDelta ?? 0) - (a.nextDayDelta ?? a.sameDayDelta ?? 0))
+    .slice(0, 2);
+
+  const warmMemories = extractWarmMemories(recordsMap, selectedDate);
+
+  return {
+    isDip,
+    consecutiveLow,
+    recoveryAnchors,
+    warmMemories,
   };
 }
 
@@ -697,7 +794,7 @@ export function generateDemoDataset21Days() {
     { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['walk', 'tea', 'presence'], col: 'azure' },
     { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate'], col: 'amber' },
     { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence'], col: 'amber' },
+    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
     { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate'], col: 'sage' },
     { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'alcohol'], col: 'indigo' },
     { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea'], col: 'stone' },
@@ -711,7 +808,7 @@ export function generateDemoDataset21Days() {
     { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk'], col: 'stone' },
     { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence'], col: 'sage' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea'], col: 'amber' },
+    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];
 
@@ -735,7 +832,7 @@ export function generateDemoDataset21Days() {
       questionTag: null,
       feltAlive: t.e >= 7,
       isCycleStart: idx === 1,
-      note: '',
+      note: t.note || '',
       isSaved: true,
       updatedAt: dt.toISOString(),
     };

@@ -134,6 +134,7 @@ export default function App() {
               onChangeDate={setSelectedDate}
               dayRecord={currentDayRecord}
               allRecords={allRecords}
+              catalog={fullCatalog}
               onUpdateDay={handleUpdateDay}
               profile={profile}
               baselineMean={analyticsSummary.mean}
@@ -146,6 +147,7 @@ export default function App() {
               selectedDate={selectedDate}
               dayRecord={currentDayRecord}
               allRecords={allRecords}
+              catalog={fullCatalog}
               onUpdateDay={handleUpdateDay}
               shoppingPauses={shoppingPauses}
               onUpdatePauses={handleUpdatePauses}

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { MOOD_COLORS, SYMPTOMS_LIST } from '../data/brandingTokens';
-import { WEEKLY_QUESTIONS } from '../data/questionsData';
-import { formatFullRuDate, getLocalDateKey, parseDateKey } from '../services/storage';
-import { computeCycleInfo, computeDayIndex, computeHydrationTarget } from '../services/analytics';
+import { RITUALS_CATALOG, WEEKLY_QUESTIONS } from '../data/questionsData';
+import { formatFullRuDate, formatShortRuDate, getLocalDateKey, parseDateKey } from '../services/storage';
+import { computeCycleInfo, computeDayIndex, computeHydrationTarget, computeRecoverySupport } from '../services/analytics';
 import { IconDrop, IconPresence, IconShield, IconWind } from './RitualIcons';
 import { WelcomeBanner } from './WelcomeBanner';
 import { CocoonModal } from './CocoonModal';
@@ -13,6 +13,7 @@ export function DailyCheckin({
   onChangeDate,
   dayRecord,
   allRecords,
+  catalog,
   onUpdateDay,
   profile,
   baselineMean,
@@ -31,6 +32,30 @@ export function DailyCheckin({
 
   const [isCocoonOpen, setIsCocoonOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [memoryIdx, setMemoryIdx] = useState(0);
+
+  const effectiveCatalog = catalog || RITUALS_CATALOG;
+  const ritualTitles = useMemo(
+    () => Object.fromEntries(effectiveCatalog.map((r) => [r.id, r.title])),
+    [effectiveCatalog]
+  );
+
+  const recoverySupport = useMemo(
+    () =>
+      computeRecoverySupport(
+        allRecords,
+        effectiveCatalog,
+        selectedDate,
+        dayRecord.wellbeing,
+        baselineMean
+      ),
+    [allRecords, effectiveCatalog, selectedDate, dayRecord.wellbeing, baselineMean]
+  );
+
+  const activeMemory =
+    recoverySupport.warmMemories.length > 0
+      ? recoverySupport.warmMemories[memoryIdx % recoverySupport.warmMemories.length]
+      : null;
 
   const liveIndex = computeDayIndex(dayRecord);
   const deltaFromMean =
@@ -465,6 +490,77 @@ export function DailyCheckin({
           </div>
         )}
       </div>
+
+      {/* 4.5. Опора при спаде («Свежий воздух» и снимок тёплого дня) */}
+      {recoverySupport.isDip &&
+        (recoverySupport.recoveryAnchors.length > 0 || activeMemory) && (
+          <div
+            className="p-4 rounded-2xl border border-l-2 space-y-3 animate-fade-in"
+            style={{
+              backgroundColor: activeTheme.surfaceCard,
+              borderColor: activeTheme.borderColor,
+              borderLeftColor: activeTheme.accent,
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                Опора из ваших записей
+              </span>
+              {recoverySupport.warmMemories.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setMemoryIdx((i) => i + 1)}
+                  className="text-[11px] underline decoration-dotted opacity-75 hover:opacity-100"
+                  style={{ color: activeTheme.textSecondary }}
+                >
+                  Другой день
+                </button>
+              )}
+            </div>
+
+            {recoverySupport.recoveryAnchors.length > 0 && (
+              <p className="text-xs leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                По вашим прошлым дням после таких спадов лучше всего помогали:{' '}
+                <strong style={{ color: activeTheme.textPrimary }}>
+                  {recoverySupport.recoveryAnchors.map((a) => a.title).join(' и ')}
+                </strong>
+                .
+              </p>
+            )}
+
+            {activeMemory && (
+              <div
+                className="p-3 rounded-xl border space-y-1"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                }}
+              >
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-medium" style={{ color: activeTheme.accent }}>
+                    {formatShortRuDate(activeMemory.date)} · Состояние {activeMemory.index}
+                  </span>
+                  {activeMemory.rituals.length > 0 && (
+                    <span className="truncate max-w-[55%]" style={{ color: activeTheme.textMuted }}>
+                      {activeMemory.rituals.map((id) => ritualTitles[id] || id).join(', ')}
+                    </span>
+                  )}
+                </div>
+                {activeMemory.note ? (
+                  <p className="text-xs leading-relaxed" style={{ color: activeTheme.textPrimary }}>
+                    «{activeMemory.note}»
+                  </p>
+                ) : (
+                  activeMemory.questionTag && (
+                    <p className="text-xs" style={{ color: activeTheme.textSecondary }}>
+                      Запомнилось: {activeMemory.questionTag}
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* 5. Настроение и вечерний вопрос */}
       <div

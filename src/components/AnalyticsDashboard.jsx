@@ -41,6 +41,7 @@ export function AnalyticsDashboard({
 
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedPointIdx, setSelectedPointIdx] = useState(null);
+  const [archiveIdx, setArchiveIdx] = useState(0);
 
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
@@ -1024,6 +1025,77 @@ export function AnalyticsDashboard({
           })}
         </div>
       </div>
+
+      {/* БЛОК 5.5: Архив хороших дней («Погреб лета») */}
+      {analytics.warmMemories && analytics.warmMemories.length > 0 && (() => {
+        const mem = analytics.warmMemories[archiveIdx % analytics.warmMemories.length];
+        return (
+          <div
+            className="p-4 rounded-2xl border space-y-2.5"
+            style={{
+              backgroundColor: activeTheme.surfaceCard,
+              borderColor: activeTheme.borderColor,
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+                  Архив хороших дней
+                </span>
+                <span className="text-[11px]" style={{ color: activeTheme.textMuted }}>
+                  Сохранено дней с высоким ресурсом: {analytics.warmMemories.length}
+                </span>
+              </div>
+              {analytics.warmMemories.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setArchiveIdx((i) => i + 1)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg border shrink-0"
+                  style={{
+                    borderColor: activeTheme.borderColor,
+                    backgroundColor: activeTheme.surfaceContainer,
+                    color: activeTheme.textPrimary,
+                  }}
+                >
+                  Следующий →
+                </button>
+              )}
+            </div>
+
+            <div
+              className="p-3 rounded-xl border space-y-1.5"
+              style={{
+                backgroundColor: activeTheme.surfaceContainer,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium" style={{ color: activeTheme.accent }}>
+                  {formatShortRuDate(mem.date)} · Состояние {mem.index}
+                </span>
+                {mem.rituals.length > 0 && (
+                  <span className="truncate max-w-[55%]" style={{ color: activeTheme.textMuted }}>
+                    {mem.rituals.map((id) => ritualTitles[id] || id).join(', ')}
+                  </span>
+                )}
+              </div>
+              {mem.note ? (
+                <p className="text-xs leading-relaxed" style={{ color: activeTheme.textPrimary }}>
+                  «{mem.note}»
+                </p>
+              ) : mem.questionTag ? (
+                <p className="text-xs" style={{ color: activeTheme.textSecondary }}>
+                  Запомнилось: {mem.questionTag}
+                </p>
+              ) : (
+                <p className="text-xs" style={{ color: activeTheme.textSecondary }}>
+                  Спокойный, ресурсный день без заметки.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* БЛОК 6: Календарь месяца */}
       <div
