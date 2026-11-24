@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MOOD_COLORS, SYMPTOMS_LIST } from '../data/brandingTokens';
 import { RITUALS_CATALOG, WEEKLY_QUESTIONS } from '../data/questionsData';
 import { formatFullRuDate, formatShortRuDate, getLocalDateKey, parseDateKey } from '../services/storage';
-import { computeCycleInfo, computeDayIndex, computeHydrationTarget, computeRecoverySupport } from '../services/analytics';
+import { computeCycleInfo, computeDayIndex, computeHydrationTarget, computeIntradaySwing, computeRawScore, computeRecoverySupport } from '../services/analytics';
 import { IconDrop, IconPresence, IconShield, IconWind } from './RitualIcons';
 import { WelcomeBanner } from './WelcomeBanner';
 import { CocoonModal } from './CocoonModal';
@@ -58,6 +58,8 @@ export function DailyCheckin({
       : null;
 
   const liveIndex = computeDayIndex(dayRecord);
+  const intradaySwing = computeIntradaySwing(dayRecord);
+  const snapshots = dayRecord.snapshots || [];
   const deltaFromMean =
     baselineMean !== null ? Math.round((liveIndex - baselineMean) * 10) / 10 : null;
   const hydration = computeHydrationTarget(profile?.weight, dayRecord);
@@ -107,9 +109,54 @@ export function DailyCheckin({
     patchDay({ symptoms: next }, true);
   };
 
+  const createCurrentSnapshot = () => {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return {
+      id: `snap_${Date.now()}`,
+      time,
+      timestamp: now.toISOString(),
+      energy: dayRecord.energy,
+      calm: dayRecord.calm,
+      bodyComfort: dayRecord.bodyComfort,
+      wellbeing: dayRecord.wellbeing,
+      index: computeRawScore(dayRecord),
+    };
+  };
+
   const handleSaveExplicit = () => {
-    patchDay({ isSaved: true }, true);
+    const currentSnaps = [...(dayRecord.snapshots || [])];
+    const snap = createCurrentSnapshot();
+
+    if (currentSnaps.length === 0) {
+      currentSnaps.push(snap);
+    } else {
+      const last = currentSnaps[currentSnaps.length - 1];
+      const minsSinceLast = last.timestamp
+        ? (Date.now() - new Date(last.timestamp).getTime()) / 60000
+        : 999;
+      if (minsSinceLast >= 30) {
+        currentSnaps.push(snap);
+      } else {
+        currentSnaps[currentSnaps.length - 1] = { ...snap, id: last.id };
+      }
+    }
+
+    patchDay({ isSaved: true, snapshots: currentSnaps }, true);
     flashStatus(`Сохранено за ${formatFullRuDate(selectedDate)}.`);
+  };
+
+  const handleAddSnapshotNow = () => {
+    const currentSnaps = [...(dayRecord.snapshots || [])];
+    const snap = createCurrentSnapshot();
+    currentSnaps.push(snap);
+    patchDay({ isSaved: true, snapshots: currentSnaps }, true);
+    flashStatus(`Срез зафиксирован (${snap.time} · ${snap.index}).`);
+  };
+
+  const handleRemoveSnapshot = (snapId) => {
+    const next = (dayRecord.snapshots || []).filter((s) => s.id !== snapId);
+    patchDay({ snapshots: next }, true);
   };
 
   const displayQuestion =
@@ -286,6 +333,60 @@ export function DailyCheckin({
             <span className="text-[11px] text-right" style={{ color: activeTheme.textMuted }}>
               {hydration.noteText}
             </span>
+          </div>
+        )}
+
+        {/* Срезы состояния внутри дня */}
+        {snapshots.length > 0 && (
+          <div
+            className="mt-3 pt-3 border-t space-y-2"
+            style={{ borderColor: activeTheme.borderColor }}
+          >
+            <div className="flex items-center justify-between text-[11px]">
+              <span style={{ color: activeTheme.textSecondary }}>
+                Срезы за день ({snapshots.length})
+              </span>
+              {intradaySwing && (
+                <span
+                  className="tabular-nums font-medium"
+                  style={{
+                    color:
+                      intradaySwing.direction > 0
+                        ? activeTheme.accent
+                        : intradaySwing.direction < 0
+                        ? activeTheme.danger
+                        : activeTheme.textSecondary,
+                  }}
+                >
+                  перепад {intradaySwing.min}–{intradaySwing.max} (
+                  {intradaySwing.direction > 0 ? `+${intradaySwing.direction}` : intradaySwing.direction})
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {snapshots.map((s) => (
+                <span
+                  key={s.id}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] tabular-nums"
+                  style={{
+                    backgroundColor: activeTheme.surfaceContainer,
+                    borderColor: activeTheme.borderColor,
+                    color: activeTheme.textPrimary,
+                  }}
+                >
+                  <span style={{ color: activeTheme.textMuted }}>{s.time}</span>
+                  <span className="font-medium">{s.index}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSnapshot(s.id)}
+                    className="opacity-50 hover:opacity-100 text-[10px]"
+                    aria-label="Удалить срез"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -789,21 +890,38 @@ export function DailyCheckin({
           }}
         />
 
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-[11px] min-h-[16px]" style={{ color: activeTheme.accent }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-[11px] min-h-[16px] flex-1" style={{ color: activeTheme.accent }}>
             {statusMessage}
           </div>
-          <button
-            type="button"
-            onClick={handleSaveExplicit}
-            className="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-opacity hover:opacity-90"
-            style={{
-              backgroundColor: activeTheme.primary,
-              color: activeTheme.primaryText,
-            }}
-          >
-            Сохранить день
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {dayRecord.isSaved && (
+              <button
+                type="button"
+                onClick={handleAddSnapshotNow}
+                className="px-3 py-2 rounded-xl border text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                  color: activeTheme.textPrimary,
+                }}
+                title="Зафиксировать новое состояние внутри этого же дня"
+              >
+                + Срез дня
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveExplicit}
+              className="px-4 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90"
+              style={{
+                backgroundColor: activeTheme.primary,
+                color: activeTheme.primaryText,
+              }}
+            >
+              Сохранить день
+            </button>
+          </div>
         </div>
       </div>
 

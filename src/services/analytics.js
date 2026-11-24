@@ -21,11 +21,7 @@ const round = (n, digits = 1) => {
   return Math.round(n * factor) / factor;
 };
 
-/**
- * 1. Композитный индекс состояния W ∈ [0, 100]
- * W = 10 * (0.32*E + 0.28*C + 0.25*B + 0.15*(2*Q_sleep))
- */
-export function computeDayIndex(record) {
+export function computeRawScore(record) {
   if (!record) return null;
   const e = Number(record.energy ?? 6);
   const c = Number(record.calm ?? 6);
@@ -33,6 +29,43 @@ export function computeDayIndex(record) {
   const q = Number(record.sleepQuality ?? 3);
   const raw = 10 * (0.32 * e + 0.28 * c + 0.25 * b + 0.15 * (q * 2));
   return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
+/**
+ * 1. Композитный индекс состояния W ∈ [0, 100]
+ * Если за день зафиксировано 2+ среза, итогом дня считается их среднее.
+ */
+export function computeDayIndex(record) {
+  if (!record) return null;
+  if (Array.isArray(record.snapshots) && record.snapshots.length >= 2) {
+    const vals = record.snapshots.map((s) => Number(s.index)).filter((v) => Number.isFinite(v));
+    if (vals.length >= 2) {
+      return Math.round(computeMean(vals));
+    }
+  }
+  return computeRawScore(record);
+}
+
+/**
+ * Расчёт перепада состояния внутри одного дня по срезам (snapshots)
+ */
+export function computeIntradaySwing(record) {
+  if (!record || !Array.isArray(record.snapshots) || record.snapshots.length < 2) return null;
+  const vals = record.snapshots.map((s) => Number(s.index)).filter((v) => Number.isFinite(v));
+  if (vals.length < 2) return null;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const first = record.snapshots[0];
+  const last = record.snapshots[record.snapshots.length - 1];
+  return {
+    count: record.snapshots.length,
+    min,
+    max,
+    amplitude: max - min,
+    direction: Number(last.index) - Number(first.index),
+    first,
+    last,
+  };
 }
 
 /**
@@ -645,6 +678,36 @@ export function generateNarrativeInsights(
     }
   }
 
+  // 3.5. Влияние вечернего перепада внутри дня на сон следующей ночью
+  if (Array.isArray(allSeries) && allSeries.length >= 4) {
+    const byDateMap = new Map(allSeries.map((s) => [s.date, s]));
+    const dropSleepHours = [];
+    const normalSleepHours = [];
+    allSeries.forEach((d) => {
+      const [y, m, dayNum] = d.date.split('-').map(Number);
+      const nextKey = getLocalDateKey(new Date(y, m - 1, dayNum + 1));
+      const tomorrow = byDateMap.get(nextKey);
+      if (!tomorrow || !Number.isFinite(Number(tomorrow.sleepHours))) return;
+      const sw = computeIntradaySwing(d);
+      if (sw && sw.amplitude >= 15 && sw.direction <= -10) {
+        dropSleepHours.push(Number(tomorrow.sleepHours));
+      } else {
+        normalSleepHours.push(Number(tomorrow.sleepHours));
+      }
+    });
+    if (dropSleepHours.length >= 2 && normalSleepHours.length >= 2) {
+      const diff = round(computeMean(dropSleepHours) - computeMean(normalSleepHours), 1);
+      if (diff <= -0.4) {
+        list.push({
+          id: 'intraday_drop_sleep',
+          tone: 'caution',
+          title: 'Вечерние перепады и сон',
+          text: `В дни с резким вечерним спадом ваш сон следующей ночью в среднем короче на ${Math.abs(diff)} ч.`,
+        });
+      }
+    }
+  }
+
   // 4. Цикл или сон/тренд (добираем до 3 карточек)
   if (list.length < 3 && cycleStats && cycleStats.diff !== null && Math.abs(cycleStats.diff) >= 4) {
     list.push({
@@ -755,6 +818,14 @@ export function computeFullAnalytics(
 
   const warmMemories = extractWarmMemories(recordsMap);
   const weeklyDigest = computeWeeklyDigest(activeSeries, catalog);
+  const intradaySwings = activeSeries
+    .map((r) => {
+      const swing = computeIntradaySwing(r);
+      return swing && swing.amplitude >= 12 ? { date: r.date, ...swing, rituals: r.rituals || [] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.amplitude - a.amplitude)
+    .slice(0, 5);
 
   const baseResult = {
     totalDays: allSorted.length,
@@ -780,6 +851,7 @@ export function computeFullAnalytics(
     cycleStats,
     warmMemories,
     weeklyDigest,
+    intradaySwings,
   };
 
   return {
@@ -933,7 +1005,10 @@ export function generateDemoDataset21Days() {
     { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
     { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
     { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate', 'work'], col: 'sage' },
-    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo' },
+    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo', snapshots: [
+      { id: 'd_s1', time: '13:30', index: 76, wellbeing: 'in_flow' },
+      { id: 'd_s2', time: '22:15', index: 46, wellbeing: 'tired' },
+    ] },
     { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea', 'work', 'overtime'], col: 'stone' },
     { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
     { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
@@ -944,7 +1019,10 @@ export function generateDemoDataset21Days() {
     { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping', 'work', 'alcohol'], col: 'indigo' },
     { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk', 'work', 'overtime'], col: 'stone' },
     { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence', 'work'], col: 'sage' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber', snapshots: [
+      { id: 'd_s3', time: '12:00', index: 62, wellbeing: 'tired' },
+      { id: 'd_s4', time: '21:30', index: 86, wellbeing: 'in_flow' },
+    ] },
     { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
     { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];
@@ -969,6 +1047,7 @@ export function generateDemoDataset21Days() {
       questionTag: null,
       feltAlive: t.e >= 7,
       isCycleStart: idx === 1,
+      snapshots: t.snapshots || [],
       note: t.note || '',
       isSaved: true,
       updatedAt: dt.toISOString(),

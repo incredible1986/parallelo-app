@@ -1166,6 +1166,57 @@ export function AnalyticsDashboard({
         );
       })()}
 
+      {/* БЛОК 5.7: Перепады внутри дня */}
+      {analytics.intradaySwings && analytics.intradaySwings.length > 0 && (
+        <div
+          className="p-4 rounded-2xl border space-y-2.5"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div>
+            <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+              Перепады внутри дня
+            </span>
+            <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
+              Дни, когда самочувствие сильно менялось между днём и вечером
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            {analytics.intradaySwings.map((sw) => (
+              <div
+                key={sw.date}
+                className="p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="font-medium" style={{ color: activeTheme.textPrimary }}>
+                    {formatShortRuDate(sw.date)} · {sw.first.time} ({sw.first.index}) → {sw.last.time} ({sw.last.index})
+                  </div>
+                  {sw.rituals.length > 0 && (
+                    <div className="text-[11px] truncate" style={{ color: activeTheme.textSecondary }}>
+                      {sw.rituals.map((id) => ritualTitles[id] || id).join(', ')}
+                    </div>
+                  )}
+                </div>
+                <span
+                  className="tabular-nums font-semibold shrink-0"
+                  style={{
+                    color: sw.direction > 0 ? activeTheme.accent : activeTheme.danger,
+                  }}
+                >
+                  {sw.direction > 0 ? `+${sw.direction}` : sw.direction}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* БЛОК 6: Календарь месяца */}
       <div
         className="p-4 rounded-2xl border space-y-3"

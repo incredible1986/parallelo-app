@@ -81,6 +81,7 @@ export function createEmptyDayRecord(dateKey = getLocalDateKey()) {
     questionTag: null,
     feltAlive: false,
     isCycleStart: false,
+    snapshots: [],
     note: '',
     isSaved: false,
     updatedAt: null,
