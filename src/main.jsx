@@ -9,10 +9,10 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>
 );
 
-// Регистрация Service Worker для реальной офлайн-работы PWA
+// Регистрация Service Worker для реальной офлайн-работы PWA (в рамках /app/)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((err) => {
+    navigator.serviceWorker.register('/app/sw.js').catch((err) => {
       console.warn('SW registration skipped:', err);
     });
   });

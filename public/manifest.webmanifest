@@ -2,14 +2,14 @@
   "name": "Parallelo — Аналитика ритмов и состояния",
   "short_name": "Parallelo",
   "description": "Персональная аналитика состояния, сна и ритмов без давления и чувства вины",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/app/",
+  "scope": "/app/",
   "display": "standalone",
   "background_color": "#0D1217",
   "theme_color": "#0D1217",
   "icons": [
     {
-      "src": "./branding/parallelo-p-3d.jpg",
+      "src": "/branding/parallelo-p-3d.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any maskable"

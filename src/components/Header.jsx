@@ -16,7 +16,7 @@ export function Header({ activeTheme, onQuickToggleTheme, onReplaySplash, totalD
           aria-label="Показать заставку Parallelo"
         >
           <img
-            src="./branding/parallelo-p-3d.jpg"
+            src="/branding/parallelo-p-3d.jpg"
             alt="Parallelo"
             className="w-9 h-9 rounded-xl object-cover border"
             style={{ borderColor: activeTheme.borderColor }}

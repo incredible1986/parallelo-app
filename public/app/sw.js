@@ -1,9 +1,9 @@
-const CACHE_NAME = 'parallelo-pwa-v3';
+const CACHE_NAME = 'parallelo-pwa-v4';
 const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './branding/parallelo-p-3d.jpg',
+  '/app/',
+  '/app/index.html',
+  '/manifest.webmanifest',
+  '/branding/parallelo-p-3d.jpg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -31,18 +31,18 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Network-first для HTML-навигации (чтобы свежие релизы подтягивались сразу)
+  // Network-first для HTML-навигации внутри /app/
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response && response.status === 200) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put('/app/index.html', copy));
           }
           return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('/app/index.html'))
     );
     return;
   }

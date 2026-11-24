@@ -71,7 +71,7 @@ export function SplashScreen({ onFinish }) {
       <div className="relative z-10 flex flex-col items-center text-center max-w-xs space-y-6 animate-splash-rise">
         <div className="relative p-2 rounded-[36px] border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-md">
           <img
-            src="./branding/parallelo-p-3d.jpg"
+            src="/branding/parallelo-p-3d.jpg"
             alt="Parallelo"
             className="w-40 h-40 sm:w-44 sm:h-44 rounded-[28px] object-contain"
           />

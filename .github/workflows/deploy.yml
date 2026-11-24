@@ -30,9 +30,7 @@ jobs:
       - name: Install dependencies
         run: rm -f package-lock.json && npm install --no-audit --no-fund --registry=https://registry.npmjs.org
 
-      - name: Build for GitHub Pages
-        env:
-          GITHUB_PAGES: "true"
+      - name: Build for Custom Domain (parallelo.ru)
         run: npm run build && cp dist/index.html dist/404.html
 
       - name: Upload artifact
