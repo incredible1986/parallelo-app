@@ -36,7 +36,7 @@ export function WelcomeBanner({ activeTheme }) {
         className="text-[11px] font-medium mb-1"
         style={{ color: activeTheme.primary }}
       >
-        Без оценок, давления и чувства вины
+        Без осуждения, давления и чувства вины
       </div>
 
       <h2

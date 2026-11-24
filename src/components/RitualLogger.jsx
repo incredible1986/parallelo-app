@@ -294,7 +294,7 @@ export function RitualLogger({
             Близость и вещества
           </span>
           <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
-            Без оценок и стыда — эти факторы сильно влияют на сон и состояние на следующий день.
+            Без осуждения и стыда — эти факторы сильно влияют на сон и состояние на следующий день.
           </p>
         </div>
         <div className="space-y-2">{bodySubstancesRituals.map(renderRitualButton)}</div>
