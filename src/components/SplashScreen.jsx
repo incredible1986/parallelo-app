@@ -89,7 +89,7 @@ export function SplashScreen({ onFinish }) {
             PARALLELO
           </h1>
           <p className="text-sm font-serif text-amber-200/90 leading-relaxed">
-            Параллельная вселенная без спешки, стриков и оценок
+            Параллельная вселенная без спешки, оценок и давления
           </p>
           <p className="text-xs text-slate-400 leading-relaxed">
             Место, где тело, сон и события дня складываются в честную картину вашего ритма.
