@@ -33,6 +33,8 @@ export function DailyCheckin({
   const [isCocoonOpen, setIsCocoonOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [memoryIdx, setMemoryIdx] = useState(0);
+  const [isEditingCycleDay, setIsEditingCycleDay] = useState(false);
+  const [cycleDayInput, setCycleDayInput] = useState('');
 
   const effectiveCatalog = catalog || RITUALS_CATALOG;
   const ritualTitles = useMemo(
@@ -157,6 +159,29 @@ export function DailyCheckin({
   const handleRemoveSnapshot = (snapId) => {
     const next = (dayRecord.snapshots || []).filter((s) => s.id !== snapId);
     patchDay({ snapshots: next }, true);
+  };
+
+  const handleSetCurrentCycleDay = (e) => {
+    e.preventDefault();
+    const dayNum = Number(cycleDayInput);
+    if (!Number.isFinite(dayNum) || dayNum < 1 || dayNum > 45) return;
+
+    const d = parseDateKey(selectedDate);
+    d.setDate(d.getDate() - (dayNum - 1));
+    const startKey = getLocalDateKey(d);
+
+    // Если раньше уже была автометка начала этого же цикла без сохранённого дня — аккуратно перенесём её
+    if (cycleInfo?.lastStart && cycleInfo.lastStart !== startKey) {
+      const prevRec = allRecords?.[cycleInfo.lastStart];
+      if (prevRec && !prevRec.isSaved) {
+        onUpdateDay(cycleInfo.lastStart, { isCycleStart: false });
+      }
+    }
+
+    onUpdateDay(startKey, { isCycleStart: true });
+    setIsEditingCycleDay(false);
+    setCycleDayInput('');
+    flashStatus(`Установлен ${dayNum}-й день цикла (начало ${formatShortRuDate(startKey)}).`);
   };
 
   const displayQuestion =
@@ -571,31 +596,94 @@ export function DailyCheckin({
 
         {profile?.trackCycle && (
           <div
-            className="pt-3 border-t flex items-center justify-between gap-3"
+            className="pt-3 border-t space-y-2.5"
             style={{ borderColor: activeTheme.borderColor }}
           >
-            <div className="min-w-0">
-              <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-                {cycleInfo ? `День цикла: ${cycleInfo.cycleDay}` : 'Учёт цикла'}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                  {cycleInfo ? `День цикла: ${cycleInfo.cycleDay}` : 'Учёт цикла'}
+                </div>
+                <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                  {cycleInfo ? cycleInfo.phaseLabel : 'Укажите текущий день или отметьте 1-й день'}
+                </div>
               </div>
-              <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
-                {cycleInfo ? cycleInfo.phaseLabel : 'Отметьте 1-й день цикла, чтобы считать фазу'}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCycleDayInput(cycleInfo ? String(cycleInfo.cycleDay) : '');
+                    setIsEditingCycleDay((v) => !v);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: activeTheme.surfaceContainer,
+                    borderColor: activeTheme.borderColor,
+                    color: activeTheme.textPrimary,
+                  }}
+                >
+                  {cycleInfo ? 'Изменить' : 'Указать день'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => patchDay({ isCycleStart: !dayRecord.isCycleStart }, true)}
+                  className="px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: dayRecord.isCycleStart
+                      ? activeTheme.primary
+                      : activeTheme.surfaceContainer,
+                    borderColor: dayRecord.isCycleStart ? activeTheme.primary : activeTheme.borderColor,
+                    color: dayRecord.isCycleStart ? activeTheme.primaryText : activeTheme.textSecondary,
+                  }}
+                >
+                  {dayRecord.isCycleStart ? '1-й день ✓' : '1-й день'}
+                </button>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => patchDay({ isCycleStart: !dayRecord.isCycleStart }, true)}
-              className="px-3 py-1.5 rounded-xl border text-[11px] font-medium shrink-0 transition-colors"
-              style={{
-                backgroundColor: dayRecord.isCycleStart
-                  ? activeTheme.primary
-                  : activeTheme.surfaceContainer,
-                borderColor: dayRecord.isCycleStart ? activeTheme.primary : activeTheme.borderColor,
-                color: dayRecord.isCycleStart ? activeTheme.primaryText : activeTheme.textSecondary,
-              }}
-            >
-              {dayRecord.isCycleStart ? '1-й день ✓' : '1-й день цикла'}
-            </button>
+
+            {isEditingCycleDay && (
+              <form
+                onSubmit={handleSetCurrentCycleDay}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl border animate-fade-in"
+                style={{
+                  backgroundColor: activeTheme.surfaceContainer,
+                  borderColor: activeTheme.borderColor,
+                }}
+              >
+                <label htmlFor="cycleDayInput" className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                  Какой сегодня день цикла?
+                </label>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <input
+                    id="cycleDayInput"
+                    type="number"
+                    min="1"
+                    max="45"
+                    placeholder="16"
+                    value={cycleDayInput}
+                    onChange={(e) => setCycleDayInput(e.target.value)}
+                    autoFocus
+                    className="w-16 text-center tabular-nums text-xs p-1.5 rounded-lg border focus:outline-none"
+                    style={{
+                      backgroundColor: activeTheme.surfaceCard,
+                      borderColor: activeTheme.borderColor,
+                      color: activeTheme.textPrimary,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!cycleDayInput || Number(cycleDayInput) < 1 || Number(cycleDayInput) > 45}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: activeTheme.primary,
+                      color: activeTheme.primaryText,
+                    }}
+                  >
+                    Ок
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </div>
