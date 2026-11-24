@@ -13,6 +13,7 @@ import { RitualLogger } from './components/RitualLogger';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { UserProfileCard } from './components/UserProfileCard';
 import { PinLockScreen } from './components/PinLockScreen';
+import { SplashScreen } from './components/SplashScreen';
 import {
   IconChart,
   IconPulse,
@@ -30,6 +31,7 @@ export default function App() {
   const [customFactors, setCustomFactors] = useState(() => StorageService.getCustomFactors());
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey());
   const [activeTab, setActiveTab] = useState('today');
+  const [showSplash, setShowSplash] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(() => !StorageService.hasPin());
 
   const activeTheme = PALETTES[profile.themeId] || PALETTES.obsidian;
@@ -110,6 +112,10 @@ export default function App() {
     { id: 'profile', label: 'Профиль', Icon: IconUser },
   ];
 
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   if (!isUnlocked) {
     return <PinLockScreen activeTheme={activeTheme} onUnlock={() => setIsUnlocked(true)} />;
   }
@@ -129,6 +135,7 @@ export default function App() {
         <Header
           activeTheme={activeTheme}
           onQuickToggleTheme={handleQuickToggleTheme}
+          onReplaySplash={() => setShowSplash(true)}
           totalDays={analyticsSummary.totalDays}
         />
 

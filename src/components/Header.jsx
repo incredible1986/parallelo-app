@@ -1,14 +1,20 @@
 import React from 'react';
 import { IconMoon, IconSun } from './RitualIcons';
 
-export function Header({ activeTheme, onQuickToggleTheme, totalDays }) {
+export function Header({ activeTheme, onQuickToggleTheme, onReplaySplash, totalDays }) {
   return (
     <header
       className="px-5 pt-4 pb-3.5 flex items-center justify-between border-b"
       style={{ borderColor: activeTheme.borderColor }}
     >
       <div className="flex items-center gap-3">
-        <div className="relative">
+        <button
+          type="button"
+          onClick={onReplaySplash}
+          className="relative rounded-xl focus:outline-none transition-transform active:scale-95"
+          title="Показать заставку"
+          aria-label="Показать заставку Parallelo"
+        >
           <img
             src="./branding/parallelo-p-3d.jpg"
             alt="Parallelo"
@@ -22,7 +28,7 @@ export function Header({ activeTheme, onQuickToggleTheme, totalDays }) {
               borderColor: activeTheme.surface,
             }}
           />
-        </div>
+        </button>
 
         <div>
           <div className="flex items-center gap-2">
