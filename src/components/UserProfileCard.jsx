@@ -37,6 +37,12 @@ export function UserProfileCard({
     setTimeout(() => setNotice(null), 3500);
   };
 
+  const handleCycleLengthChange = (delta) => {
+    const nextLen = Math.max(21, Math.min(40, Number(cycleLength || 28) + delta));
+    setCycleLength(nextLen);
+    onUpdateProfile({ cycleLength: nextLen });
+  };
+
   const handleSave = () => {
     onUpdateProfile({
       name: name.trim(),
@@ -213,6 +219,7 @@ export function UserProfileCard({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={() => onUpdateProfile({ name: name.trim() })}
             placeholder="Как к вам обращаться"
             className="w-full text-xs p-2.5 rounded-xl border focus:outline-none"
             style={{
@@ -234,7 +241,10 @@ export function UserProfileCard({
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setSeason(s.id)}
+                  onClick={() => {
+                    setSeason(s.id);
+                    onUpdateProfile({ season: s.id });
+                  }}
                   className="p-2.5 rounded-xl border text-left transition-colors"
                   style={{
                     backgroundColor: isPicked ? activeTheme.surfaceElevated : 'transparent',
@@ -285,6 +295,7 @@ export function UserProfileCard({
                 placeholder="168"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
+                onBlur={() => onUpdateProfile({ height: height ? String(height) : '' })}
                 className="w-full text-xs tabular-nums p-2 rounded-xl border focus:outline-none"
                 style={{
                   backgroundColor: activeTheme.surfaceContainer,
@@ -303,6 +314,7 @@ export function UserProfileCard({
                 placeholder="64"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
+                onBlur={() => onUpdateProfile({ weight: weight ? String(weight) : '' })}
                 className="w-full text-xs tabular-nums p-2 rounded-xl border focus:outline-none"
                 style={{
                   backgroundColor: activeTheme.surfaceContainer,
@@ -334,7 +346,11 @@ export function UserProfileCard({
 
         <button
           type="button"
-          onClick={() => setExcludeSick(!excludeSick)}
+          onClick={() => {
+            const nextVal = !excludeSick;
+            setExcludeSick(nextVal);
+            onUpdateProfile({ excludeSickFromBaseline: nextVal });
+          }}
           className="w-full p-3 rounded-xl border flex items-center justify-between text-left"
           style={{
             backgroundColor: activeTheme.surfaceContainer,
@@ -370,7 +386,12 @@ export function UserProfileCard({
         >
           <button
             type="button"
-            onClick={() => setTrackCycle(!trackCycle)}
+            onClick={() => {
+              const nextVal = !trackCycle;
+              setTrackCycle(nextVal);
+              onUpdateProfile({ trackCycle: nextVal });
+              flashNotice(nextVal ? 'Учёт цикла включён.' : 'Учёт цикла выключен.');
+            }}
             className="w-full flex items-center justify-between text-left"
           >
             <div>
@@ -401,7 +422,7 @@ export function UserProfileCard({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setCycleLength((v) => Math.max(21, v - 1))}
+                  onClick={() => handleCycleLengthChange(-1)}
                   className="w-7 h-7 rounded-lg border text-xs"
                   style={{ borderColor: activeTheme.borderColor, color: activeTheme.textPrimary }}
                 >
@@ -412,7 +433,7 @@ export function UserProfileCard({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setCycleLength((v) => Math.min(40, v + 1))}
+                  onClick={() => handleCycleLengthChange(1)}
                   className="w-7 h-7 rounded-lg border text-xs"
                   style={{ borderColor: activeTheme.borderColor, color: activeTheme.textPrimary }}
                 >
