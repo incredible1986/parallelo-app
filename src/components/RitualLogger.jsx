@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { COFFEE_DETAILS, MEAT_TYPES, NICOTINE_DETAILS } from '../data/brandingTokens';
 import { RITUALS_CATALOG } from '../data/questionsData';
 import { formatFullRuDate } from '../services/storage';
 import { RITUAL_ICONS, IconCheck, IconClock, IconPulse } from './RitualIcons';
@@ -25,6 +26,7 @@ export function RitualLogger({
   onUpdatePauses,
   customFactors = [],
   onUpdateCustomFactors,
+  profile,
 }) {
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
@@ -65,12 +67,29 @@ export function RitualLogger({
       ? activeRituals.filter((id) => id !== ritual.id)
       : [...activeRituals, ritual.id];
 
-    onUpdateDay(selectedDate, { rituals: nextRituals, isSaved: true });
+    const patch = { rituals: nextRituals, isSaved: true };
+    if (exists && ritual.id === 'coffee') patch.coffeeDetail = null;
+    if (exists && ritual.id === 'nicotine') patch.nicotineDetail = null;
+
+    onUpdateDay(selectedDate, patch);
     showNotice(
       exists
         ? `«${ritual.title}» убрано из дня.`
         : `«${ritual.title}» отмечено за этот день.`
     );
+  };
+
+  const handleToggleDetail = (field, detailId) => {
+    const next = dayRecord[field] === detailId ? null : detailId;
+    onUpdateDay(selectedDate, { [field]: next, isSaved: true });
+  };
+
+  const handleToggleMeatType = (meatId) => {
+    const current = dayRecord.meatTypes || [];
+    const nextMeat = current.includes(meatId)
+      ? current.filter((id) => id !== meatId)
+      : [...current, meatId];
+    onUpdateDay(selectedDate, { meatTypes: nextMeat, isSaved: true });
   };
 
   const handleWorkoutComplete = (workoutEntry) => {
@@ -145,6 +164,23 @@ export function RitualLogger({
   const workSocialRituals = RITUALS_CATALOG.filter((r) => r.group === 'work_social');
   const bodySubstancesRituals = RITUALS_CATALOG.filter((r) => r.group === 'body_substances');
 
+  const dietMode = profile?.dietMeatMode || 'omnivore';
+  const activeMeat = dayRecord.meatTypes || [];
+  const allowedByMode = {
+    omnivore: new Set(['red_meat', 'poultry', 'fish', 'offal']),
+    poultry_fish: new Set(['poultry', 'fish']),
+    pescatarian: new Set(['fish']),
+    no_meat: new Set(),
+  };
+  const visibleMeatTypes = MEAT_TYPES.filter(
+    (m) => (allowedByMode[dietMode] || allowedByMode.omnivore).has(m.id) || activeMeat.includes(m.id)
+  );
+
+  const detailConfigs = {
+    coffee: { field: 'coffeeDetail', items: COFFEE_DETAILS },
+    nicotine: { field: 'nicotineDetail', items: NICOTINE_DETAILS },
+  };
+
   const activeWaitingPauses = (shoppingPauses || []).filter((p) => p.status === 'waiting');
   const skippedCount = (shoppingPauses || []).filter((p) => p.status === 'skipped').length;
 
@@ -152,81 +188,106 @@ export function RitualLogger({
     const isDone = activeRituals.includes(ritual.id);
     const IconComponent = RITUAL_ICONS[ritual.iconKey] || RITUAL_ICONS.presence;
     const totalCount = historyCounts[ritual.id] || 0;
+    const detailCfg = isDone ? detailConfigs[ritual.id] : null;
 
     return (
-      <button
-        key={ritual.id}
-        type="button"
-        onClick={() => handleToggleRitual(ritual)}
-        className="w-full p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-left transition-colors"
-        style={{
-          backgroundColor: isDone ? activeTheme.surfaceElevated : activeTheme.surfaceCard,
-          borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-        }}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors"
-            style={{
-              backgroundColor: isDone ? activeTheme.primary : activeTheme.surfaceContainer,
-              borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-              color: isDone ? activeTheme.primaryText : activeTheme.textSecondary,
-            }}
-          >
-            <IconComponent className="w-5 h-5" isPulsing={isDone && ritual.iconKey === 'presence'} />
+      <div key={ritual.id} className="space-y-1.5">
+        <button
+          type="button"
+          onClick={() => handleToggleRitual(ritual)}
+          className="w-full p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-left transition-colors"
+          style={{
+            backgroundColor: isDone ? activeTheme.surfaceElevated : activeTheme.surfaceCard,
+            borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors"
+              style={{
+                backgroundColor: isDone ? activeTheme.primary : activeTheme.surfaceContainer,
+                borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+                color: isDone ? activeTheme.primaryText : activeTheme.textSecondary,
+              }}
+            >
+              <IconComponent className="w-5 h-5" isPulsing={isDone && ritual.iconKey === 'presence'} />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+                  {ritual.title}
+                </span>
+                {totalCount > 0 && (
+                  <span
+                    className="text-[10px] tabular-nums px-1.5 py-0.5 rounded"
+                    style={{
+                      backgroundColor: activeTheme.surfaceContainer,
+                      color: activeTheme.textSecondary,
+                    }}
+                  >
+                    {totalCount} раз
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: activeTheme.textSecondary }}>
+                {ritual.desc}
+              </p>
+            </div>
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
-                {ritual.title}
+          <div className="flex items-center gap-2 shrink-0">
+            {ritual.isCustom && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => handleDeleteCustomFactor(e, ritual.id, ritual.title)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDeleteCustomFactor(e, ritual.id, ritual.title);
+                }}
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-xs opacity-50 hover:opacity-100"
+                style={{ color: activeTheme.textSecondary }}
+                title="Удалить фактор"
+              >
+                ✕
               </span>
-              {totalCount > 0 && (
-                <span
-                  className="text-[10px] tabular-nums px-1.5 py-0.5 rounded"
+            )}
+            <div
+              className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
+              style={{
+                backgroundColor: isDone ? activeTheme.primary : 'transparent',
+                borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
+                color: activeTheme.primaryText,
+              }}
+            >
+              {isDone && <IconCheck className="w-3.5 h-3.5" />}
+            </div>
+          </div>
+        </button>
+
+        {detailCfg && (
+          <div className="flex flex-wrap gap-1.5 pl-2 animate-fade-in">
+            {detailCfg.items.map((opt) => {
+              const isPicked = dayRecord[detailCfg.field] === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleToggleDetail(detailCfg.field, opt.id)}
+                  className="px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors"
                   style={{
-                    backgroundColor: activeTheme.surfaceContainer,
-                    color: activeTheme.textSecondary,
+                    backgroundColor: isPicked ? activeTheme.surfaceElevated : activeTheme.surfaceContainer,
+                    borderColor: isPicked ? activeTheme.primary : activeTheme.borderColor,
+                    color: isPicked ? activeTheme.primary : activeTheme.textSecondary,
                   }}
                 >
-                  {totalCount} раз
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] mt-0.5 leading-snug" style={{ color: activeTheme.textSecondary }}>
-              {ritual.desc}
-            </p>
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {ritual.isCustom && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => handleDeleteCustomFactor(e, ritual.id, ritual.title)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleDeleteCustomFactor(e, ritual.id, ritual.title);
-              }}
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs opacity-50 hover:opacity-100"
-              style={{ color: activeTheme.textSecondary }}
-              title="Удалить фактор"
-            >
-              ✕
-            </span>
-          )}
-          <div
-            className="w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors"
-            style={{
-              backgroundColor: isDone ? activeTheme.primary : 'transparent',
-              borderColor: isDone ? activeTheme.primary : activeTheme.borderColor,
-              color: activeTheme.primaryText,
-            }}
-          >
-            {isDone && <IconCheck className="w-3.5 h-3.5" />}
-          </div>
-        </div>
-      </button>
+        )}
+      </div>
     );
   };
 
@@ -287,11 +348,62 @@ export function RitualLogger({
         <div className="space-y-2">{workSocialRituals.map(renderRitualButton)}</div>
       </div>
 
-      {/* Группа 3: Близость и вещества */}
+      {/* Рацион: мясо и рыба за день */}
+      {dietMode !== 'no_meat' && visibleMeatTypes.length > 0 && (
+        <div
+          className="p-4 rounded-2xl border space-y-2.5"
+          style={{
+            backgroundColor: activeTheme.surfaceCard,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div>
+            <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
+              Мясо и рыба за день
+            </span>
+            <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
+              {dietMode === 'pescatarian' || dietMode === 'poultry_fish'
+                ? 'Варианты по настройкам профиля — без подсчёта граммов'
+                : 'Какой белок был в рационе сегодня — для связей с тяжестью и энергией'}
+            </p>
+          </div>
+
+          <div
+            className={`grid gap-2 ${
+              visibleMeatTypes.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+            }`}
+          >
+            {visibleMeatTypes.map((m) => {
+              const isPicked = activeMeat.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleToggleMeatType(m.id)}
+                  className="p-2.5 rounded-xl border text-left transition-colors"
+                  style={{
+                    backgroundColor: isPicked ? activeTheme.surfaceElevated : 'transparent',
+                    borderColor: isPicked ? activeTheme.primary : activeTheme.borderColor,
+                  }}
+                >
+                  <div className="text-xs font-medium leading-tight" style={{ color: activeTheme.textPrimary }}>
+                    {m.label}
+                  </div>
+                  <div className="text-[10px] leading-snug mt-0.5" style={{ color: activeTheme.textSecondary }}>
+                    {m.hint}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Группа 3: Стимуляторы, близость и вещества */}
       <div className="space-y-2">
         <div>
           <span className="text-xs font-medium block" style={{ color: activeTheme.textSecondary }}>
-            Близость и вещества
+            Стимуляторы, близость и вещества
           </span>
           <p className="text-[11px] mt-0.5" style={{ color: activeTheme.textMuted }}>
             Без осуждения и стыда — эти факторы сильно влияют на сон и состояние на следующий день.

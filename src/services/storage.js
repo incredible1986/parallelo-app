@@ -1,4 +1,4 @@
-import { DIGESTION_OPTIONS } from '../data/brandingTokens.js';
+import { DIGESTION_OPTIONS, MEAT_TYPES } from '../data/brandingTokens.js';
 import { DEFAULT_CHECKUPS_DATA } from '../data/checkupData.js';
 
 /**
@@ -79,6 +79,9 @@ export function createEmptyDayRecord(dateKey = getLocalDateKey()) {
     restingHr: null,
     wellbeing: 'in_flow', // 'in_flow' | 'tired' | 'sick'
     digestion: null,
+    coffeeDetail: null,
+    nicotineDetail: null,
+    meatTypes: [],
     symptoms: [],
     rituals: [],
     workouts: [],
@@ -100,6 +103,7 @@ export const DEFAULT_PROFILE = {
   weight: '',
   excludeSickFromBaseline: true,
   trackDigestion: true,
+  dietMeatMode: 'omnivore',
   trackCycle: false,
   cycleLength: 28,
   themeId: 'obsidian',
@@ -391,6 +395,7 @@ export const StorageService = {
   exportCsv(catalog = []) {
     const titleMap = Object.fromEntries(catalog.map((c) => [c.id, c.title]));
     const digestionMap = Object.fromEntries(DIGESTION_OPTIONS.map((o) => [o.id, o.label]));
+    const meatMap = Object.fromEntries(MEAT_TYPES.map((m) => [m.id, m.label]));
     const escapeCsv = (v) => {
       const s = String(v ?? '').replace(/"/g, '""');
       return `"${s}"`;
@@ -405,6 +410,7 @@ export const StorageService = {
       'Качество_сна',
       'Самочувствие',
       'Пищеварение',
+      'Белок_мясо',
       'Пульс',
       'Факторы',
       'Заметка',
@@ -429,6 +435,7 @@ export const StorageService = {
         )
       );
       const factorsText = (r.rituals || []).map((id) => titleMap[id] || id).join('; ');
+      const meatText = (r.meatTypes || []).map((id) => meatMap[id] || id).join('; ');
       return [
         r.date,
         score,
@@ -439,6 +446,7 @@ export const StorageService = {
         r.sleepQuality ?? '',
         r.wellbeing ?? '',
         r.digestion ? (digestionMap[r.digestion] ?? r.digestion) : '',
+        meatText,
         r.restingHr ?? '',
         factorsText,
         r.note ?? '',

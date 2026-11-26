@@ -13,7 +13,18 @@
  * 9. Формула индивидуальной гидратации (вес × 30 мл + термо/нагрузочные поправки)
  */
 
+import { MEAT_TYPES } from '../data/brandingTokens.js';
 import { getLocalDateKey, parseDateKey } from './storage.js';
+
+const NON_ANCHOR_IDS = new Set([
+  'alcohol',
+  'substances',
+  'nicotine',
+  'energy_drink',
+  'coffee',
+  'overtime',
+  'work',
+]);
 
 const round = (n, digits = 1) => {
   if (!Number.isFinite(n)) return 0;
@@ -401,6 +412,11 @@ export function computeHydrationTarget(weightKg, record) {
   if (rituals.includes('alcohol')) bonuses.push({ label: 'алкоголя', ml: 300 });
   if (rituals.includes('substances')) bonuses.push({ label: 'веществ', ml: 250 });
   if (rituals.includes('walk')) bonuses.push({ label: 'прогулки', ml: 150 });
+  if (rituals.includes('coffee')) {
+    bonuses.push({ label: 'кофе', ml: record?.coffeeDetail === 'many' ? 300 : 150 });
+  }
+  if (rituals.includes('energy_drink')) bonuses.push({ label: 'энергетика', ml: 250 });
+  if (rituals.includes('nicotine')) bonuses.push({ label: 'никотина', ml: 150 });
   if (record?.wellbeing === 'sick') bonuses.push({ label: 'восстановления', ml: 250 });
   if (record?.digestion === 'none' || record?.digestion === 'heavy') {
     bonuses.push({ label: 'пищеварения', ml: 250 });
@@ -410,16 +426,20 @@ export function computeHydrationTarget(weightKg, record) {
 
   const totalBonus = bonuses.reduce((sum, b) => sum + b.ml, 0);
   const totalMl = base + totalBonus;
+  const noteText =
+    bonuses.length === 0
+      ? 'базовый ориентир на день'
+      : bonuses.length <= 2
+      ? `с учётом ${bonuses.map((b) => b.label).join(' и ')}`
+      : `с учётом ${bonuses.map((b) => b.label).join(', ')}`;
+
   return {
     baseMl: base,
     bonusMl: totalBonus,
     totalMl,
     totalLiters: round(totalMl / 1000, 1),
     bonuses,
-    noteText:
-      bonuses.length > 0
-        ? `с учётом ${bonuses.map((b) => b.label).join(' и ')}`
-        : 'базовый ориентир на день',
+    noteText,
   };
 }
 
@@ -578,8 +598,6 @@ export function computeDigestionStats(
   let topHelper = null;
   let bestHelperScore = 0;
 
-  const helperExcluded = new Set(['alcohol', 'substances', 'overtime', 'work']);
-
   catalog.forEach((ritual) => {
     let withTotal = 0;
     let withIssue = 0;
@@ -623,7 +641,7 @@ export function computeDigestionStats(
         };
       }
 
-      if (!helperExcluded.has(ritual.id)) {
+      if (!NON_ANCHOR_IDS.has(ritual.id)) {
         const comfRateWith = withComf / withTotal;
         const comfRateWithout = withoutComf / withoutTotal;
         const helperLift = comfRateWith - comfRateWithout;
@@ -679,6 +697,112 @@ export function computeDigestionStats(
     topTrigger,
     topHelper,
     cycleNote,
+  };
+}
+
+/**
+ * Анализ белкового рациона (мясо/рыба/без мяса) и стимуляторов (поздний кофе, энергетики, никотин)
+ */
+export function computeNutritionAndStimulants(allSorted) {
+  if (!Array.isArray(allSorted) || allSorted.length === 0) return null;
+
+  const byDate = new Map(allSorted.map((r) => [r.date, r]));
+  const getNextKey = (dateKey) => {
+    const dt = parseDateKey(dateKey);
+    dt.setDate(dt.getDate() + 1);
+    return getLocalDateKey(dt);
+  };
+
+  const proteinGroups = MEAT_TYPES.map((m) => {
+    const matched = allSorted.filter((r) => (r.meatTypes || []).includes(m.id));
+    if (matched.length === 0) return null;
+    return {
+      id: m.id,
+      label: m.label,
+      count: matched.length,
+      avgIndex: round(computeMean(matched.map((r) => r.index)), 1),
+      avgBodyComfort: round(computeMean(matched.map((r) => Number(r.bodyComfort ?? 6))), 1),
+    };
+  }).filter(Boolean);
+
+  const meatDays = allSorted.filter((r) => (r.meatTypes || []).length > 0);
+  const meatFreeDays = allSorted.filter((r) => (r.meatTypes || []).length === 0);
+  const totalMeatDays = meatDays.length;
+  const meatFreeCount = meatFreeDays.length;
+  const meatFreeAvgIndex = meatFreeCount
+    ? round(computeMean(meatFreeDays.map((r) => r.index)), 1)
+    : null;
+  const meatFreeAvgBody = meatFreeCount
+    ? round(computeMean(meatFreeDays.map((r) => Number(r.bodyComfort ?? 6))), 1)
+    : null;
+
+  // Красное мясо и завтрашнее пищеварение
+  let redMeatDigestionNote = null;
+  let totalAfterRed = 0;
+  let heavyAfterRed = 0;
+  allSorted.forEach((day) => {
+    if (!(day.meatTypes || []).includes('red_meat')) return;
+    const tomorrow = byDate.get(getNextKey(day.date));
+    if (!tomorrow || !tomorrow.digestion || !VALID_DIGESTION.includes(tomorrow.digestion)) return;
+    totalAfterRed += 1;
+    if (tomorrow.digestion === 'heavy' || tomorrow.digestion === 'none') {
+      heavyAfterRed += 1;
+    }
+  });
+  if (totalAfterRed >= 2 && heavyAfterRed >= 2 && heavyAfterRed / totalAfterRed >= 0.5) {
+    redMeatDigestionNote = `После красного мяса плотное пищеварение или пауза на следующий день отмечались в ${heavyAfterRed} из ${totalAfterRed} случаев.`;
+  }
+
+  // Наблюдения по кофе, энергетикам и никотину
+  const stimulantNotes = [];
+
+  const lateCoffeeSleep = [];
+  const otherSleep = [];
+  allSorted.forEach((day) => {
+    const tomorrow = byDate.get(getNextKey(day.date));
+    if (!tomorrow || !Number.isFinite(Number(tomorrow.sleepHours))) return;
+    const isLateOrMany =
+      (day.rituals || []).includes('coffee') &&
+      (day.coffeeDetail === 'late' || day.coffeeDetail === 'many');
+    if (isLateOrMany) lateCoffeeSleep.push(Number(tomorrow.sleepHours));
+    else otherSleep.push(Number(tomorrow.sleepHours));
+  });
+
+  if (lateCoffeeSleep.length >= 2 && otherSleep.length >= 2) {
+    const diff = round(computeMean(lateCoffeeSleep) - computeMean(otherSleep), 1);
+    if (diff <= -0.4) {
+      stimulantNotes.push(
+        `Кофе после 15:00 или 3+ чашки сопровождаются более коротким сном следующей ночью (в среднем ${diff} ч).`
+      );
+    }
+  }
+
+  const moreNicotineDays = allSorted.filter(
+    (r) => (r.rituals || []).includes('nicotine') && r.nicotineDetail === 'more'
+  );
+  if (moreNicotineDays.length >= 2) {
+    const tenseCount = moreNicotineDays.filter(
+      (r) => (r.rituals || []).includes('overtime') || Number(r.calm ?? 6) <= 4
+    ).length;
+    if (tenseCount / moreNicotineDays.length >= 0.6) {
+      stimulantNotes.push(
+        'Сигарет больше обычного чаще в дни переработок и высокого напряжения — это сигнал усталости нервной системы.'
+      );
+    }
+  }
+
+  if (totalMeatDays === 0 && stimulantNotes.length === 0 && !redMeatDigestionNote) {
+    return null;
+  }
+
+  return {
+    proteinGroups,
+    meatFreeCount,
+    meatFreeAvgIndex,
+    meatFreeAvgBody,
+    totalMeatDays,
+    redMeatDigestionNote,
+    stimulantNotes,
   };
 }
 
@@ -788,6 +912,7 @@ export function generateNarrativeInsights(
     analyzedDays,
     cycleStats,
     digestionStats,
+    nutritionStats,
     allSeries,
     series,
     mean,
@@ -961,6 +1086,24 @@ export function generateNarrativeInsights(
     }
   }
 
+  if (list.length < 4 && nutritionStats) {
+    if (nutritionStats.stimulantNotes && nutritionStats.stimulantNotes.length > 0) {
+      list.push({
+        id: 'stimulant_sleep_or_stress',
+        tone: 'caution',
+        title: 'Стимуляторы и нагрузка',
+        text: nutritionStats.stimulantNotes[0],
+      });
+    } else if (nutritionStats.redMeatDigestionNote) {
+      list.push({
+        id: 'red_meat_digestion',
+        tone: 'neutral',
+        title: 'Рацион и пищеварение',
+        text: nutritionStats.redMeatDigestionNote,
+      });
+    }
+  }
+
   if (list.length === 0) {
     list.push({
       id: 'steady_trend',
@@ -1055,6 +1198,7 @@ export function computeFullAnalytics(
   const digestionStats = trackDigestion
     ? computeDigestionStats(allSorted, recordsMap, catalog, { trackCycle, cycleLength })
     : null;
+  const nutritionStats = computeNutritionAndStimulants(allSorted);
 
   const warmMemories = extractWarmMemories(recordsMap);
   const weeklyDigest = computeWeeklyDigest(activeSeries, catalog);
@@ -1090,6 +1234,7 @@ export function computeFullAnalytics(
     factorImpacts,
     cycleStats,
     digestionStats,
+    nutritionStats,
     warmMemories,
     weeklyDigest,
     intradaySwings,
@@ -1118,7 +1263,7 @@ export function computeWeeklyDigest(activeSeries, catalog = []) {
   const counts = {};
   last7.forEach((d) => {
     (d.rituals || []).forEach((id) => {
-      if (id !== 'alcohol' && id !== 'substances' && id !== 'overtime' && id !== 'work') {
+      if (!NON_ANCHOR_IDS.has(id)) {
         counts[id] = (counts[id] || 0) + 1;
       }
     });
@@ -1211,8 +1356,7 @@ export function computeRecoverySupport(
   const recoveryAnchors = impacts
     .filter(
       (f) =>
-        f.id !== 'alcohol' &&
-        f.id !== 'substances' &&
+        !NON_ANCHOR_IDS.has(f.id) &&
         f.count >= 2 &&
         (f.nextDayDelta ?? f.sameDayDelta ?? 0) >= 3
     )
@@ -1239,33 +1383,33 @@ export function generateDemoDataset21Days() {
 
   // Детерминированный 21-дневный сценарий: баня и близость дают подъём, алкоголь и недосып снижают ресурс, 2 дня простуды
   const template = [
-    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', dig: 'comfortable', r: ['warm_plate', 'tea', 'work', 'alcohol'], col: 'sage' },
-    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'loose', r: ['warm_plate', 'work', 'overtime'], col: 'stone' },
-    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', r: ['walk', 'tea', 'presence', 'work'], col: 'azure' },
-    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['movement', 'warm_plate', 'friends'], col: 'amber' },
-    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
-    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['garden', 'warm_plate', 'work'], col: 'sage' },
-    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'comfortable', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo', snapshots: [
+    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', dig: 'comfortable', cDet: 'late', nDet: 'usual', meat: ['poultry'], r: ['warm_plate', 'tea', 'work', 'coffee', 'nicotine', 'alcohol'], col: 'sage' },
+    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'loose', cDet: 'morning', nDet: 'more', meat: ['red_meat'], r: ['warm_plate', 'work', 'overtime', 'coffee', 'nicotine'], col: 'stone' },
+    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', cDet: 'morning', meat: ['fish'], r: ['walk', 'tea', 'presence', 'work', 'coffee'], col: 'azure' },
+    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', meat: ['poultry'], r: ['movement', 'warm_plate', 'friends'], col: 'amber' },
+    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', dig: 'comfortable', meat: ['fish'], r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
+    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', meat: ['poultry'], r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
+    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', cDet: 'morning', meat: [], r: ['garden', 'warm_plate', 'work', 'coffee'], col: 'sage' },
+    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'comfortable', cDet: 'many', nDet: 'more', meat: ['poultry'], r: ['mindful_shopping', 'work', 'overtime', 'coffee', 'nicotine', 'alcohol'], col: 'indigo', snapshots: [
       { id: 'd_s1', time: '13:30', index: 76, wellbeing: 'in_flow' },
       { id: 'd_s2', time: '22:15', index: 46, wellbeing: 'tired' },
     ] },
-    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', dig: 'loose', r: ['tea', 'work', 'overtime'], col: 'stone' },
-    { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', dig: 'none', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
-    { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', dig: 'none', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
-    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', dig: 'heavy', r: ['walk', 'warm_plate', 'work'], col: 'sage' },
-    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['banya', 'tea', 'intimacy', 'friends'], col: 'azure' },
-    { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['presence', 'tea', 'work'], col: 'azure' },
-    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', dig: 'comfortable', r: ['warm_plate', 'mindful_shopping', 'work', 'alcohol'], col: 'indigo' },
-    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', dig: 'loose', r: ['walk', 'work', 'overtime'], col: 'stone' },
-    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', r: ['movement', 'warm_plate', 'presence', 'work'], col: 'sage' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber', snapshots: [
+    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', dig: 'loose', nDet: 'more', meat: [], r: ['tea', 'work', 'overtime', 'energy_drink', 'nicotine'], col: 'stone' },
+    { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', dig: 'none', meat: [], r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
+    { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', dig: 'none', meat: ['red_meat', 'offal'], r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
+    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', dig: 'heavy', meat: ['fish'], r: ['walk', 'warm_plate', 'work'], col: 'sage' },
+    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', cDet: 'morning', meat: ['fish'], r: ['banya', 'tea', 'intimacy', 'friends', 'coffee'], col: 'azure' },
+    { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', meat: ['poultry'], r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', cDet: 'morning', meat: ['fish'], r: ['presence', 'tea', 'work', 'coffee'], col: 'azure' },
+    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', dig: 'comfortable', cDet: 'late', nDet: 'usual', meat: ['poultry'], r: ['warm_plate', 'mindful_shopping', 'work', 'coffee', 'nicotine', 'alcohol'], col: 'indigo' },
+    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', dig: 'loose', meat: ['red_meat'], r: ['walk', 'work', 'overtime', 'energy_drink'], col: 'stone' },
+    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', cDet: 'morning', meat: ['poultry'], r: ['movement', 'warm_plate', 'presence', 'work', 'coffee'], col: 'sage' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', meat: ['fish'], r: ['banya', 'warm_plate', 'intimacy'], col: 'amber', snapshots: [
       { id: 'd_s3', time: '12:00', index: 62, wellbeing: 'tired' },
       { id: 'd_s4', time: '21:30', index: 86, wellbeing: 'in_flow' },
     ] },
-    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
+    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', dig: 'comfortable', meat: [], r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', meat: ['fish'], r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];
 
   template.forEach((t, idx) => {
@@ -1280,6 +1424,9 @@ export function generateDemoDataset21Days() {
       sleepQuality: t.sq,
       wellbeing: t.w,
       digestion: t.dig || 'comfortable',
+      coffeeDetail: t.cDet || null,
+      nicotineDetail: t.nDet || null,
+      meatTypes: t.meat || [],
       symptoms: t.sym || [],
       rituals: t.r,
       workouts: t.r.includes('movement')

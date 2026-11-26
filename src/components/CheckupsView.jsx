@@ -22,7 +22,7 @@ function getDeltaString(curr, prev) {
   return '0';
 }
 
-export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecords }) {
+export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecords, profile }) {
   const todayKey = getLocalDateKey();
 
   // Состояние инлайн-редактирования профилактического осмотра
@@ -574,6 +574,16 @@ export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecor
             {isLabFormOpen ? 'Закрыть форму' : '+ Внести анализы'}
           </button>
         </div>
+
+        {(profile?.dietMeatMode === 'no_meat' ||
+          profile?.dietMeatMode === 'pescatarian' ||
+          profile?.dietMeatMode === 'poultry_fish') && (
+          <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textMuted }}>
+            {profile?.dietMeatMode === 'no_meat'
+              ? 'В профиле отмечен рацион без мяса и рыбы — полезный контекст для врача при оценке гемоглобина и ферритина.'
+              : 'В профиле отмечен рацион без красного мяса — полезный контекст при плановом контроле гемоглобина и ферритина.'}
+          </p>
+        )}
 
         {/* Форма добавления / редактирования бланка анализов */}
         {isLabFormOpen && (

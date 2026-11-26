@@ -184,6 +184,7 @@ export default function App() {
               onUpdatePauses={handleUpdatePauses}
               customFactors={customFactors}
               onUpdateCustomFactors={handleUpdateCustomFactors}
+              profile={profile}
             />
           )}
 
@@ -209,6 +210,7 @@ export default function App() {
               checkups={checkups}
               onUpdateCheckups={handleUpdateCheckups}
               allRecords={allRecords}
+              profile={profile}
             />
           )}
 

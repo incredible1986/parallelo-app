@@ -95,3 +95,29 @@ export const DIGESTION_OPTIONS = [
   { id: 'heavy', label: 'Плотно / тяжело', short: 'Плотно' },
   { id: 'loose', label: 'Слабо / расстройство', short: 'Расстройство' },
 ];
+
+export const DIET_MEAT_MODES = [
+  { id: 'omnivore', label: 'Ем разное', desc: 'Красное мясо, птица, рыба' },
+  { id: 'poultry_fish', label: 'Птица и рыба', desc: 'Без красного мяса' },
+  { id: 'pescatarian', label: 'Только рыба', desc: 'Рыба и морепродукты, без мяса' },
+  { id: 'no_meat', label: 'Без мяса и рыбы', desc: 'Растительный / вегетарианский рацион' },
+];
+
+export const MEAT_TYPES = [
+  { id: 'red_meat', label: 'Красное мясо', hint: 'Говядина, свинина, баранина' },
+  { id: 'poultry', label: 'Птица', hint: 'Курица, индейка, утка' },
+  { id: 'fish', label: 'Рыба и морепродукты', hint: 'Рыба, креветки, икра' },
+  { id: 'offal', label: 'Субпродукты', hint: 'Печень, сердечки, паштет' },
+];
+
+export const COFFEE_DETAILS = [
+  { id: 'morning', label: '1–2 утром' },
+  { id: 'late', label: 'После 15:00' },
+  { id: 'many', label: '3+ чашки' },
+];
+
+export const NICOTINE_DETAILS = [
+  { id: 'light', label: 'Немного' },
+  { id: 'usual', label: 'Как обычно' },
+  { id: 'more', label: 'Больше обычного' },
+];

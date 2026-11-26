@@ -135,6 +135,32 @@ export const IconFriends = ({ className = 'w-5 h-5', ...props }) => (
   </svg>
 );
 
+export const IconCoffee = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <path d="M5 8h11v5a5.5 5.5 0 0 1-11 0V8Z" />
+    <path d="M16 9h2a2 2 0 0 1 0 4h-2" />
+    <path d="M4 19h13" />
+    <path d="M8.5 4.5v1.5" />
+    <path d="M12.5 4.5v1.5" />
+  </svg>
+);
+
+export const IconEnergyDrink = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <rect x="7" y="3" width="10" height="18" rx="2" />
+    <path d="M7 7h10" />
+    <path d="M12.5 9.5L10.5 13h3l-2 3.5" />
+  </svg>
+);
+
+export const IconNicotine = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <rect x="3" y="13" width="14" height="3.5" rx="1" />
+    <path d="M7 13v3.5" />
+    <path d="M19 11c0-2-1.5-2.5-1.5-4.5S19 4 19 3" />
+  </svg>
+);
+
 /* Системные и навигационные иконки (без эмодзи) */
 export const IconPulse = ({ className = 'w-5 h-5', ...props }) => (
   <svg {...baseProps} className={className} {...props}>
@@ -247,4 +273,7 @@ export const RITUAL_ICONS = {
   work: IconWork,
   overtime: IconOvertime,
   friends: IconFriends,
+  coffee: IconCoffee,
+  energy_drink: IconEnergyDrink,
+  nicotine: IconNicotine,
 };

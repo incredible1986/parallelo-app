@@ -1131,6 +1131,91 @@ export function AnalyticsDashboard({
           );
         })()}
 
+      {/* БЛОК 4.9: Рацион и стимуляторы */}
+      {analytics.nutritionStats &&
+        (analytics.nutritionStats.totalMeatDays >= 2 ||
+          analytics.nutritionStats.stimulantNotes.length > 0) && (() => {
+          const ns = analytics.nutritionStats;
+          return (
+            <div
+              className="p-4 rounded-2xl border space-y-2.5"
+              style={{
+                backgroundColor: activeTheme.surfaceCard,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+                  Рацион и стимуляторы
+                </span>
+                {ns.totalMeatDays > 0 && (
+                  <span className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                    дней с белком: {ns.totalMeatDays}
+                  </span>
+                )}
+              </div>
+
+              {ns.proteinGroups.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {ns.proteinGroups.map((pg) => (
+                    <div
+                      key={pg.id}
+                      className="p-2.5 rounded-xl border"
+                      style={{
+                        backgroundColor: activeTheme.surfaceContainer,
+                        borderColor: activeTheme.borderColor,
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-1 text-[11px]">
+                        <span className="font-medium truncate" style={{ color: activeTheme.textPrimary }}>
+                          {pg.label}
+                        </span>
+                        <span className="tabular-nums shrink-0" style={{ color: activeTheme.textMuted }}>
+                          {pg.count} дн.
+                        </span>
+                      </div>
+                      <div className="text-[11px] tabular-nums mt-0.5" style={{ color: activeTheme.textSecondary }}>
+                        Состояние {pg.avgIndex} · Комфорт {pg.avgBodyComfort}
+                      </div>
+                    </div>
+                  ))}
+
+                  {ns.meatFreeCount > 0 && ns.totalMeatDays > 0 && (
+                    <div
+                      className="p-2.5 rounded-xl border"
+                      style={{
+                        backgroundColor: activeTheme.surfaceContainer,
+                        borderColor: activeTheme.borderColor,
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-1 text-[11px]">
+                        <span className="font-medium truncate" style={{ color: activeTheme.textPrimary }}>
+                          Без мяса и рыбы
+                        </span>
+                        <span className="tabular-nums shrink-0" style={{ color: activeTheme.textMuted }}>
+                          {ns.meatFreeCount} дн.
+                        </span>
+                      </div>
+                      <div className="text-[11px] tabular-nums mt-0.5" style={{ color: activeTheme.textSecondary }}>
+                        Состояние {ns.meatFreeAvgIndex} · Комфорт {ns.meatFreeAvgBody}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(ns.redMeatDigestionNote || ns.stimulantNotes.length > 0) && (
+                <div className="space-y-1 text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                  {ns.redMeatDigestionNote && <p>{ns.redMeatDigestionNote}</p>}
+                  {ns.stimulantNotes.map((note, idx) => (
+                    <p key={idx}>{note}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
       {/* БЛОК 5: Что наполняет, а что забирает силы */}
       <div
         className="p-4 rounded-2xl border space-y-3"

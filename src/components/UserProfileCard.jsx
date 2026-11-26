@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PALETTES, SEASONS } from '../data/brandingTokens';
+import { DIET_MEAT_MODES, PALETTES, SEASONS } from '../data/brandingTokens';
 import { StorageService } from '../services/storage';
 import { computeHydrationTarget } from '../services/analytics';
 import { IconDownload, IconDrop, IconShield, IconUpload } from './RitualIcons';
@@ -21,6 +21,7 @@ export function UserProfileCard({
   const [weight, setWeight] = useState(profile.weight || '');
   const [excludeSick, setExcludeSick] = useState(profile.excludeSickFromBaseline ?? true);
   const [trackDigestion, setTrackDigestion] = useState(profile.trackDigestion ?? true);
+  const [dietMeatMode, setDietMeatMode] = useState(profile.dietMeatMode || 'omnivore');
   const [trackCycle, setTrackCycle] = useState(Boolean(profile.trackCycle));
   const [cycleLength, setCycleLength] = useState(Number(profile.cycleLength || 28));
   const [hasPin, setHasPin] = useState(() => StorageService.hasPin());
@@ -52,6 +53,7 @@ export function UserProfileCard({
       weight: weight ? String(weight) : '',
       excludeSickFromBaseline: excludeSick,
       trackDigestion,
+      dietMeatMode,
       trackCycle,
       cycleLength: Math.max(21, Math.min(40, Number(cycleLength || 28))),
     });
@@ -344,6 +346,43 @@ export function UserProfileCard({
               </span>
             </div>
           )}
+        </div>
+
+        {/* Рацион: мясо и рыба */}
+        <div
+          className="pt-3 border-t space-y-2"
+          style={{ borderColor: activeTheme.borderColor }}
+        >
+          <span className="block text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+            Мясо и рыба в рационе
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {DIET_MEAT_MODES.map((mode) => {
+              const isPicked = dietMeatMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => {
+                    setDietMeatMode(mode.id);
+                    onUpdateProfile({ dietMeatMode: mode.id });
+                  }}
+                  className="p-2.5 rounded-xl border text-left transition-colors"
+                  style={{
+                    backgroundColor: isPicked ? activeTheme.surfaceElevated : 'transparent',
+                    borderColor: isPicked ? activeTheme.primary : activeTheme.borderColor,
+                  }}
+                >
+                  <div className="text-xs font-medium leading-tight" style={{ color: activeTheme.textPrimary }}>
+                    {mode.label}
+                  </div>
+                  <div className="text-[10px] leading-snug mt-0.5" style={{ color: activeTheme.textSecondary }}>
+                    {mode.desc}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <button
