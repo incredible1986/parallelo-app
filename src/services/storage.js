@@ -1,4 +1,5 @@
 import { DIGESTION_OPTIONS } from '../data/brandingTokens.js';
+import { DEFAULT_CHECKUPS_DATA } from '../data/checkupData.js';
 
 /**
  * Parallelo v2 Storage Service
@@ -14,6 +15,7 @@ const KEYS = {
   CUSTOM_FACTORS: 'parallelo_v2_custom_factors',
   PIN_HASH: 'parallelo_v2_pin_hash',
   UI: 'parallelo_v2_ui',
+  CHECKUPS: 'parallelo_v2_checkups',
   MIGRATED: 'parallelo_v2_migrated_v1',
 };
 
@@ -290,6 +292,38 @@ export const StorageService = {
     return next;
   },
 
+  mergeCheckupsData(raw) {
+    const stored = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const mergedExams = {};
+    Object.entries(DEFAULT_CHECKUPS_DATA.exams).forEach(([id, def]) => {
+      const candidate =
+        stored.exams && typeof stored.exams[id] === 'object' ? stored.exams[id] : {};
+      mergedExams[id] = {
+        ...def,
+        ...candidate,
+        history: Array.isArray(candidate.history) ? candidate.history : [],
+      };
+    });
+
+    return {
+      ...DEFAULT_CHECKUPS_DATA,
+      ...stored,
+      exams: mergedExams,
+      labEntries: Array.isArray(stored.labEntries) ? stored.labEntries : [],
+      customMarkers: Array.isArray(stored.customMarkers) ? stored.customMarkers : [],
+    };
+  },
+
+  getCheckups() {
+    return this.mergeCheckupsData(this.get(KEYS.CHECKUPS, {}));
+  },
+
+  saveCheckups(nextCheckups) {
+    const merged = this.mergeCheckupsData(nextCheckups);
+    this.set(KEYS.CHECKUPS, merged);
+    return merged;
+  },
+
   exportBackup() {
     return JSON.stringify(
       {
@@ -300,6 +334,7 @@ export const StorageService = {
         records: this.getAllRecords(),
         shoppingPauses: this.getShoppingPauses(),
         customFactors: this.getCustomFactors(),
+        checkups: this.getCheckups(),
       },
       null,
       2
@@ -346,6 +381,9 @@ export const StorageService = {
     }
     if (Array.isArray(parsed.customFactors)) {
       this.set(KEYS.CUSTOM_FACTORS, parsed.customFactors);
+    }
+    if (parsed.checkups && typeof parsed.checkups === 'object' && !Array.isArray(parsed.checkups)) {
+      this.saveCheckups({ ...this.getCheckups(), ...parsed.checkups });
     }
     return Object.keys(sanitizedRecords).length;
   },

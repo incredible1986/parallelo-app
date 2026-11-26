@@ -224,6 +224,14 @@ export const IconUpload = ({ className = 'w-4 h-4', ...props }) => (
   </svg>
 );
 
+export const IconClipboard = ({ className = 'w-5 h-5', ...props }) => (
+  <svg {...baseProps} className={className} {...props}>
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 4.5h6v2.5H9z" />
+    <path d="M8.5 12h2l1.2-2.5 2 5 1.3-2.5h2" />
+  </svg>
+);
+
 export const RITUAL_ICONS = {
   banya: IconBanya,
   walk: IconWalk,

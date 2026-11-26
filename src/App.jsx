@@ -12,10 +12,12 @@ import { DailyCheckin } from './components/DailyCheckin';
 import { RitualLogger } from './components/RitualLogger';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { UserProfileCard } from './components/UserProfileCard';
+import { CheckupsView } from './components/CheckupsView';
 import { PinLockScreen } from './components/PinLockScreen';
 import { SplashScreen } from './components/SplashScreen';
 import {
   IconChart,
+  IconClipboard,
   IconPulse,
   IconSliders,
   IconUser,
@@ -29,6 +31,7 @@ export default function App() {
   const [allRecords, setAllRecords] = useState(() => StorageService.getAllRecords());
   const [shoppingPauses, setShoppingPauses] = useState(() => StorageService.getShoppingPauses());
   const [customFactors, setCustomFactors] = useState(() => StorageService.getCustomFactors());
+  const [checkups, setCheckups] = useState(() => StorageService.getCheckups());
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateKey());
   const [activeTab, setActiveTab] = useState('today');
   const [showSplash, setShowSplash] = useState(true);
@@ -102,11 +105,16 @@ export default function App() {
     setCustomFactors(nextFactors);
   };
 
+  const handleUpdateCheckups = (patch) => {
+    setCheckups((prev) => StorageService.saveCheckups({ ...prev, ...patch }));
+  };
+
   const handleRefreshFromStorage = () => {
     setProfile(StorageService.getProfile());
     setAllRecords(StorageService.getAllRecords());
     setShoppingPauses(StorageService.getShoppingPauses());
     setCustomFactors(StorageService.getCustomFactors());
+    setCheckups(StorageService.getCheckups());
   };
 
   const handleJumpToDate = (dateKey) => {
@@ -118,6 +126,7 @@ export default function App() {
     { id: 'today', label: 'Сегодня', Icon: IconPulse },
     { id: 'factors', label: 'Факторы', Icon: IconSliders },
     { id: 'analytics', label: 'Аналитика', Icon: IconChart },
+    { id: 'checkup', label: 'Чекап', Icon: IconClipboard },
     { id: 'profile', label: 'Профиль', Icon: IconUser },
   ];
 
@@ -194,6 +203,15 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'checkup' && (
+            <CheckupsView
+              activeTheme={activeTheme}
+              checkups={checkups}
+              onUpdateCheckups={handleUpdateCheckups}
+              allRecords={allRecords}
+            />
+          )}
+
           {activeTab === 'profile' && (
             <UserProfileCard
               activeTheme={activeTheme}
@@ -215,7 +233,7 @@ export default function App() {
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          <div className="max-w-md mx-auto grid grid-cols-4 h-16 px-2">
+          <div className="max-w-md mx-auto grid grid-cols-5 h-16 px-2">
             {navItems.map(({ id, label, Icon }) => {
               const isActive = activeTab === id;
               return (
