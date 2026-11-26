@@ -308,13 +308,17 @@ export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecor
         </div>
 
         <div className="space-y-2.5">
-          {EXAMS_CATALOG.map((exam) => {
+          {EXAMS_CATALOG.filter(
+            (exam) =>
+              !exam.femaleOnly || (checkups.specialistRole || 'gynecologist') === 'gynecologist'
+          ).map((exam) => {
             const stateData = checkups.exams?.[exam.id] || {
               lastDate: '',
               intervalMonths: exam.defaultMonths,
               note: '',
               history: [],
             };
+            const intervals = exam.intervals || [6, 12];
             const isSpecialist = exam.id === 'specialist';
             const displayTitle = isSpecialist
               ? checkups.specialistRole === 'urologist'
@@ -397,7 +401,12 @@ export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecor
                         <button
                           key={opt.id}
                           type="button"
-                          onClick={() => onUpdateCheckups({ specialistRole: opt.id })}
+                          onClick={() => {
+                            if (opt.id === 'urologist' && editingExamId === 'mammography') {
+                              setEditingExamId(null);
+                            }
+                            onUpdateCheckups({ specialistRole: opt.id });
+                          }}
                           className="px-2.5 py-1 rounded-lg border text-[11px] transition-colors"
                           style={{
                             backgroundColor: active ? activeTheme.surfaceElevated : 'transparent',
@@ -418,7 +427,11 @@ export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecor
                     className="pt-2.5 border-t space-y-2.5 animate-fade-in"
                     style={{ borderColor: activeTheme.borderColor }}
                   >
-                    <div className="grid grid-cols-2 gap-2">
+                    <div
+                      className={`grid gap-2 ${
+                        intervals.length === 3 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'
+                      }`}
+                    >
                       <div>
                         <label
                           htmlFor={`examDate_${exam.id}`}
@@ -446,8 +459,12 @@ export function CheckupsView({ activeTheme, checkups, onUpdateCheckups, allRecor
                         <span className="text-[10px] block mb-1" style={{ color: activeTheme.textSecondary }}>
                           Повторять раз в
                         </span>
-                        <div className="grid grid-cols-2 gap-1.5 h-[34px]">
-                          {[6, 12].map((months) => {
+                        <div
+                          className={`grid gap-1.5 h-[34px] ${
+                            intervals.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+                          }`}
+                        >
+                          {intervals.map((months) => {
                             const isPick = Number(examIntervalInput) === months;
                             return (
                               <button

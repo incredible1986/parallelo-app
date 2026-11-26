@@ -93,6 +93,14 @@ export const EXAMS_CATALOG = [
     desc: 'Плановый профильный осмотр',
     defaultMonths: 6,
   },
+  {
+    id: 'mammography',
+    title: 'Маммография',
+    desc: 'Плановый контроль молочных желёз (или УЗИ)',
+    defaultMonths: 12,
+    intervals: [6, 12, 24],
+    femaleOnly: true,
+  },
 ];
 
 export const DEFAULT_CHECKUPS_DATA = {
@@ -101,6 +109,7 @@ export const DEFAULT_CHECKUPS_DATA = {
     ecg: { lastDate: '', intervalMonths: 12, note: '', history: [] },
     fluorography: { lastDate: '', intervalMonths: 12, note: '', history: [] },
     specialist: { lastDate: '', intervalMonths: 6, note: '', history: [] },
+    mammography: { lastDate: '', intervalMonths: 12, note: '', history: [] },
   },
   labEntries: [],
   customMarkers: [],
