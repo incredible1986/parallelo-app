@@ -57,11 +57,20 @@ export default function App() {
     () =>
       computeFullAnalytics(allRecords, fullCatalog, {
         excludeSick: profile.excludeSickFromBaseline ?? true,
+        trackDigestion: profile.trackDigestion ?? true,
         trackCycle: Boolean(profile.trackCycle),
         cycleLength: Number(profile.cycleLength || 28),
         shoppingPauses,
       }),
-    [allRecords, fullCatalog, profile.excludeSickFromBaseline, profile.trackCycle, profile.cycleLength, shoppingPauses]
+    [
+      allRecords,
+      fullCatalog,
+      profile.excludeSickFromBaseline,
+      profile.trackDigestion,
+      profile.trackCycle,
+      profile.cycleLength,
+      shoppingPauses,
+    ]
   );
 
   const handleUpdateDay = (dateKey, patch) => {

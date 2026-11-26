@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MOOD_COLORS, SYMPTOMS_LIST } from '../data/brandingTokens';
+import { DIGESTION_OPTIONS, MOOD_COLORS, SYMPTOMS_LIST } from '../data/brandingTokens';
 import { RITUALS_CATALOG, WEEKLY_QUESTIONS } from '../data/questionsData';
 import { formatFullRuDate, formatShortRuDate, getLocalDateKey, parseDateKey } from '../services/storage';
 import { computeCycleInfo, computeDayIndex, computeHydrationTarget, computeIntradaySwing, computeRawScore, computeRecoverySupport } from '../services/analytics';
@@ -587,6 +587,54 @@ export function DailyCheckin({
                     }}
                   >
                     {sym.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {(profile?.trackDigestion ?? true) && (
+          <div
+            className="pt-3 border-t space-y-2.5"
+            style={{ borderColor: activeTheme.borderColor }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+                Пищеварение и стул
+              </span>
+              <span className="text-[11px]" style={{ color: activeTheme.textMuted }}>
+                {dayRecord.digestion ? 'отмечено' : 'по желанию'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {DIGESTION_OPTIONS.map((item) => {
+                const isSel = dayRecord.digestion === item.id;
+                const borderColors = {
+                  comfortable: activeTheme.accent,
+                  none: activeTheme.secondary,
+                  heavy: activeTheme.primary,
+                  loose: activeTheme.danger,
+                };
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      const nextVal = dayRecord.digestion === item.id ? null : item.id;
+                      patchDay({ digestion: nextVal }, true);
+                    }}
+                    className="py-2 px-2.5 rounded-xl border text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: isSel ? activeTheme.surfaceElevated : 'transparent',
+                      borderColor: isSel
+                        ? borderColors[item.id] || activeTheme.primary
+                        : activeTheme.borderColor,
+                      color: isSel ? activeTheme.textPrimary : activeTheme.textSecondary,
+                    }}
+                  >
+                    {item.label}
                   </button>
                 );
               })}

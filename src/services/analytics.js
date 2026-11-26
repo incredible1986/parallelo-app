@@ -402,6 +402,11 @@ export function computeHydrationTarget(weightKg, record) {
   if (rituals.includes('substances')) bonuses.push({ label: 'веществ', ml: 250 });
   if (rituals.includes('walk')) bonuses.push({ label: 'прогулки', ml: 150 });
   if (record?.wellbeing === 'sick') bonuses.push({ label: 'восстановления', ml: 250 });
+  if (record?.digestion === 'none' || record?.digestion === 'heavy') {
+    bonuses.push({ label: 'пищеварения', ml: 250 });
+  } else if (record?.digestion === 'loose') {
+    bonuses.push({ label: 'восполнения воды', ml: 300 });
+  }
 
   const totalBonus = bonuses.reduce((sum, b) => sum + b.ml, 0);
   const totalMl = base + totalBonus;
@@ -490,6 +495,190 @@ export function computeCyclePhaseStats(series, recordsMap, cycleLength = 28) {
     firstCount: firstHalf.length,
     secondCount: secondHalf.length,
     diff,
+  };
+}
+
+const VALID_DIGESTION = ['comfortable', 'none', 'heavy', 'loose'];
+
+/**
+ * Анализ ритма пищеварения, связи с факторами накануне и фазами цикла
+ */
+export function computeDigestionStats(
+  allSorted,
+  recordsMap,
+  catalog = [],
+  { trackCycle = false, cycleLength = 28 } = {}
+) {
+  if (!Array.isArray(allSorted) || allSorted.length === 0) return null;
+
+  const logged = allSorted.filter(
+    (r) => r.digestion && VALID_DIGESTION.includes(r.digestion)
+  );
+  if (logged.length === 0) return null;
+
+  const comfortableCount = logged.filter((r) => r.digestion === 'comfortable').length;
+  const noneCount = logged.filter((r) => r.digestion === 'none').length;
+  const heavyCount = logged.filter((r) => r.digestion === 'heavy').length;
+  const looseCount = logged.filter((r) => r.digestion === 'loose').length;
+
+  // Сколько дней подряд на самом конце истории отмечено «Не было» (шаг строго 1 календарный день)
+  let consecutiveNone = 0;
+  const latestRecordDate = allSorted[allSorted.length - 1]?.date;
+  const lastLogged = logged[logged.length - 1];
+  if (latestRecordDate && lastLogged?.digestion === 'none') {
+    const gapToLatest = Math.round(
+      (parseDateKey(latestRecordDate).getTime() - parseDateKey(lastLogged.date).getTime()) / 86400000
+    );
+    if (gapToLatest <= 1) {
+      consecutiveNone = 1;
+      for (let i = logged.length - 2; i >= 0; i--) {
+        const curr = logged[i];
+        const next = logged[i + 1];
+        const dayDiff = Math.round(
+          (parseDateKey(next.date).getTime() - parseDateKey(curr.date).getTime()) / 86400000
+        );
+        if (curr.digestion === 'none' && dayDiff === 1) {
+          consecutiveNone += 1;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  const comfDays = logged.filter((r) => r.digestion === 'comfortable');
+  const issueDays = logged.filter((r) => r.digestion !== 'comfortable');
+
+  const comfortableAvgIndex = comfDays.length
+    ? round(computeMean(comfDays.map((r) => r.index)), 1)
+    : null;
+  const issueAvgIndex = issueDays.length
+    ? round(computeMean(issueDays.map((r) => r.index)), 1)
+    : null;
+  const indexDiff =
+    comfortableAvgIndex !== null && issueAvgIndex !== null
+      ? round(comfortableAvgIndex - issueAvgIndex, 1)
+      : null;
+
+  const comfortableAvgBody = comfDays.length
+    ? round(computeMean(comfDays.map((r) => Number(r.bodyComfort ?? 6))), 1)
+    : null;
+  const issueAvgBody = issueDays.length
+    ? round(computeMean(issueDays.map((r) => Number(r.bodyComfort ?? 6))), 1)
+    : null;
+  const comfortDiff =
+    comfortableAvgBody !== null && issueAvgBody !== null
+      ? round(comfortableAvgBody - issueAvgBody, 1)
+      : null;
+
+  // Влияние вчерашних факторов на сегодняшний стул (вчера -> сегодня)
+  const byDate = new Map(allSorted.map((r) => [r.date, r]));
+  let topTrigger = null;
+  let bestTriggerScore = 0;
+  let topHelper = null;
+  let bestHelperScore = 0;
+
+  const helperExcluded = new Set(['alcohol', 'substances', 'overtime', 'work']);
+
+  catalog.forEach((ritual) => {
+    let withTotal = 0;
+    let withIssue = 0;
+    let withComf = 0;
+    let withoutTotal = 0;
+    let withoutIssue = 0;
+    let withoutComf = 0;
+
+    allSorted.forEach((day) => {
+      const dt = parseDateKey(day.date);
+      dt.setDate(dt.getDate() + 1);
+      const tomorrow = byDate.get(getLocalDateKey(dt));
+      if (!tomorrow || !tomorrow.digestion || !VALID_DIGESTION.includes(tomorrow.digestion)) {
+        return;
+      }
+
+      const hasFactor = (day.rituals || []).includes(ritual.id);
+      const isComf = tomorrow.digestion === 'comfortable';
+      if (hasFactor) {
+        withTotal += 1;
+        if (isComf) withComf += 1;
+        else withIssue += 1;
+      } else {
+        withoutTotal += 1;
+        if (isComf) withoutComf += 1;
+        else withoutIssue += 1;
+      }
+    });
+
+    if (withTotal >= 2 && withoutTotal >= 1) {
+      const issueRateWith = withIssue / withTotal;
+      const issueRateWithout = withoutIssue / withoutTotal;
+      const triggerLift = issueRateWith - issueRateWithout;
+      if (withIssue >= 2 && triggerLift >= 0.3 && triggerLift > bestTriggerScore) {
+        bestTriggerScore = triggerLift;
+        topTrigger = {
+          id: ritual.id,
+          title: ritual.title,
+          issueCount: withIssue,
+          totalWith: withTotal,
+        };
+      }
+
+      if (!helperExcluded.has(ritual.id)) {
+        const comfRateWith = withComf / withTotal;
+        const comfRateWithout = withoutComf / withoutTotal;
+        const helperLift = comfRateWith - comfRateWithout;
+        if (withComf >= 2 && helperLift >= 0.25 && helperLift > bestHelperScore) {
+          bestHelperScore = helperLift;
+          topHelper = {
+            id: ritual.id,
+            title: ritual.title,
+            comfCount: withComf,
+            totalWith: withTotal,
+          };
+        }
+      }
+    }
+  });
+
+  // Опциональная связь с фазами цикла
+  let cycleNote = null;
+  if (trackCycle) {
+    const slowDays = logged.filter((r) => r.digestion === 'none' || r.digestion === 'heavy');
+    const slowWithCycle = slowDays
+      .map((r) => computeCycleInfo(r.date, recordsMap, cycleLength))
+      .filter(Boolean);
+    const slowLutealCount = slowWithCycle.filter((info) => info.phaseId === 'luteal').length;
+
+    const looseDays = logged.filter((r) => r.digestion === 'loose');
+    const looseMenstrualCount = looseDays
+      .map((r) => computeCycleInfo(r.date, recordsMap, cycleLength))
+      .filter((info) => info && info.phaseId === 'menstrual').length;
+
+    if (slowWithCycle.length >= 2 && slowLutealCount >= 2 && slowLutealCount / slowWithCycle.length >= 0.6) {
+      cycleNote =
+        'Задержки и тяжесть чаще приходятся на вторую половину цикла — это естественное влияние гормонального фона.';
+    } else if (looseMenstrualCount >= 2) {
+      cycleNote =
+        'Слабость ЖКТ чаще совпадает с первыми днями цикла — естественная реакция организма.';
+    }
+  }
+
+  return {
+    loggedDays: logged.length,
+    comfortableCount,
+    noneCount,
+    heavyCount,
+    looseCount,
+    consecutiveNone,
+    comfortableAvgIndex,
+    issueAvgIndex,
+    indexDiff,
+    comfortableAvgBody,
+    issueAvgBody,
+    comfortDiff,
+    topTrigger,
+    topHelper,
+    cycleNote,
   };
 }
 
@@ -592,7 +781,17 @@ export function computeWorkAndWeekdayInsights(allSorted, activeSeries, mean) {
  * Генерация 1–4 живых текстовых наблюдений человеческим языком («Наблюдение дня»)
  */
 export function generateNarrativeInsights(
-  { factorImpacts, sleepRegression, trendLabel, analyzedDays, cycleStats, allSeries, series, mean },
+  {
+    factorImpacts,
+    sleepRegression,
+    trendLabel,
+    analyzedDays,
+    cycleStats,
+    digestionStats,
+    allSeries,
+    series,
+    mean,
+  },
   shoppingPauses = [],
   recordsMap = {}
 ) {
@@ -612,6 +811,15 @@ export function generateNarrativeInsights(
   // 0. Сигналы про выходной, отпуск или тяжёлый день недели
   const workAlerts = computeWorkAndWeekdayInsights(allSeries, series, mean);
   workAlerts.forEach((a) => list.push(a));
+
+  if (digestionStats?.consecutiveNone >= 2) {
+    list.push({
+      id: 'digestion_pause',
+      tone: 'caution',
+      title: 'Пауза в ритме пищеварения',
+      text: `Стула не было уже ${digestionStats.consecutiveNone} дн. подряд — сегодня телу особенно помогут тёплая вода, спокойная еда и мягкое движение.`,
+    });
+  }
 
   // 1. Главный источник сил (положительный эффект на завтра или в тот же день)
   const positiveFactors = factorImpacts
@@ -730,6 +938,29 @@ export function generateNarrativeInsights(
     });
   }
 
+  if (list.length < 4 && digestionStats && digestionStats.loggedDays >= 4) {
+    if (digestionStats.topTrigger) {
+      list.push({
+        id: `dig_trig_${digestionStats.topTrigger.id}`,
+        tone: 'caution',
+        title: `ЖКТ после «${digestionStats.topTrigger.title}»`,
+        text: `На следующий день после «${digestionStats.topTrigger.title}» дискомфорт или отсутствие стула отмечались в ${digestionStats.topTrigger.issueCount} из ${digestionStats.topTrigger.totalWith} случаев.`,
+      });
+    } else if (
+      digestionStats.indexDiff !== null &&
+      digestionStats.indexDiff >= 5 &&
+      digestionStats.comfortableCount >= 2 &&
+      digestionStats.loggedDays - digestionStats.comfortableCount >= 2
+    ) {
+      list.push({
+        id: 'digestion_comfort',
+        tone: 'positive',
+        title: 'Пищеварение и лёгкость в теле',
+        text: `В дни с комфортным пищеварением общее состояние в среднем выше на +${digestionStats.indexDiff} пунктов.`,
+      });
+    }
+  }
+
   if (list.length === 0) {
     list.push({
       id: 'steady_trend',
@@ -748,7 +979,13 @@ export function generateNarrativeInsights(
 export function computeFullAnalytics(
   recordsMap,
   catalog,
-  { excludeSick = true, trackCycle = false, cycleLength = 28, shoppingPauses = [] } = {}
+  {
+    excludeSick = true,
+    trackDigestion = true,
+    trackCycle = false,
+    cycleLength = 28,
+    shoppingPauses = [],
+  } = {}
 ) {
   const allSorted = Object.values(recordsMap || {})
     .filter((r) => r && r.date && (r.isSaved || (r.rituals && r.rituals.length > 0)))
@@ -815,6 +1052,9 @@ export function computeFullAnalytics(
   const cycleStats = trackCycle
     ? computeCyclePhaseStats(activeSeries, recordsMap, cycleLength)
     : null;
+  const digestionStats = trackDigestion
+    ? computeDigestionStats(allSorted, recordsMap, catalog, { trackCycle, cycleLength })
+    : null;
 
   const warmMemories = extractWarmMemories(recordsMap);
   const weeklyDigest = computeWeeklyDigest(activeSeries, catalog);
@@ -849,6 +1089,7 @@ export function computeFullAnalytics(
     diversity,
     factorImpacts,
     cycleStats,
+    digestionStats,
     warmMemories,
     weeklyDigest,
     intradaySwings,
@@ -998,33 +1239,33 @@ export function generateDemoDataset21Days() {
 
   // Детерминированный 21-дневный сценарий: баня и близость дают подъём, алкоголь и недосып снижают ресурс, 2 дня простуды
   const template = [
-    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', r: ['warm_plate', 'tea', 'work', 'alcohol'], col: 'sage' },
-    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['warm_plate', 'work', 'overtime'], col: 'stone' },
-    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['walk', 'tea', 'presence', 'work'], col: 'azure' },
-    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'friends'], col: 'amber' },
-    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
-    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
-    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', r: ['garden', 'warm_plate', 'work'], col: 'sage' },
-    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo', snapshots: [
+    { e: 6, c: 6, b: 6, s: 7.0, sq: 3, w: 'in_flow', dig: 'comfortable', r: ['warm_plate', 'tea', 'work', 'alcohol'], col: 'sage' },
+    { e: 5, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'loose', r: ['warm_plate', 'work', 'overtime'], col: 'stone' },
+    { e: 6, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', r: ['walk', 'tea', 'presence', 'work'], col: 'azure' },
+    { e: 7, c: 7, b: 7, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['movement', 'warm_plate', 'friends'], col: 'amber' },
+    { e: 7, c: 8, b: 8, s: 8.0, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['banya', 'warm_plate', 'tea', 'intimacy'], col: 'amber' },
+    { e: 9, c: 9, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['walk', 'presence', 'friends'], col: 'amber', note: 'После бани спала как младенец, утром лёгкость в спине и ясная голова.' },
+    { e: 8, c: 8, b: 8, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['garden', 'warm_plate', 'work'], col: 'sage' },
+    { e: 6, c: 5, b: 6, s: 6.0, sq: 2, w: 'tired', dig: 'comfortable', r: ['mindful_shopping', 'work', 'overtime', 'alcohol'], col: 'indigo', snapshots: [
       { id: 'd_s1', time: '13:30', index: 76, wellbeing: 'in_flow' },
       { id: 'd_s2', time: '22:15', index: 46, wellbeing: 'tired' },
     ] },
-    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', r: ['tea', 'work', 'overtime'], col: 'stone' },
-    { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
-    { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
-    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', r: ['walk', 'warm_plate', 'work'], col: 'sage' },
-    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['banya', 'tea', 'intimacy', 'friends'], col: 'azure' },
-    { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['presence', 'tea', 'work'], col: 'azure' },
-    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', r: ['warm_plate', 'mindful_shopping', 'work', 'alcohol'], col: 'indigo' },
-    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', r: ['walk', 'work', 'overtime'], col: 'stone' },
-    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', r: ['movement', 'warm_plate', 'presence', 'work'], col: 'sage' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber', snapshots: [
+    { e: 5, c: 5, b: 5, s: 5.5, sq: 2, w: 'tired', dig: 'loose', r: ['tea', 'work', 'overtime'], col: 'stone' },
+    { e: 3, c: 5, b: 3, s: 6.5, sq: 2, w: 'sick', dig: 'none', r: ['warm_plate'], col: 'stone', sym: ['Першит горло', 'Слабость / ломота'] },
+    { e: 4, c: 6, b: 4, s: 8.5, sq: 3, w: 'sick', dig: 'none', r: ['warm_plate', 'tea'], col: 'sage', sym: ['Слабость / ломота'] },
+    { e: 6, c: 7, b: 6, s: 8.0, sq: 4, w: 'in_flow', dig: 'heavy', r: ['walk', 'warm_plate', 'work'], col: 'sage' },
+    { e: 7, c: 7, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['banya', 'tea', 'intimacy', 'friends'], col: 'azure' },
+    { e: 9, c: 8, b: 9, s: 8.5, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['movement', 'walk', 'warm_plate'], col: 'amber' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['presence', 'tea', 'work'], col: 'azure' },
+    { e: 7, c: 6, b: 7, s: 6.5, sq: 3, w: 'in_flow', dig: 'comfortable', r: ['warm_plate', 'mindful_shopping', 'work', 'alcohol'], col: 'indigo' },
+    { e: 6, c: 6, b: 6, s: 6.5, sq: 3, w: 'tired', dig: 'loose', r: ['walk', 'work', 'overtime'], col: 'stone' },
+    { e: 7, c: 8, b: 7, s: 7.5, sq: 4, w: 'in_flow', dig: 'heavy', r: ['movement', 'warm_plate', 'presence', 'work'], col: 'sage' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['banya', 'warm_plate', 'intimacy'], col: 'amber', snapshots: [
       { id: 'd_s3', time: '12:00', index: 62, wellbeing: 'tired' },
       { id: 'd_s4', time: '21:30', index: 86, wellbeing: 'in_flow' },
     ] },
-    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
-    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
+    { e: 9, c: 9, b: 9, s: 9.0, sq: 5, w: 'in_flow', dig: 'comfortable', r: ['walk', 'garden', 'tea', 'friends'], col: 'amber', note: 'Вечер без телефона, травяной чай и долгая прогулка в тишине.' },
+    { e: 8, c: 8, b: 8, s: 8.0, sq: 4, w: 'in_flow', dig: 'comfortable', r: ['movement', 'presence', 'warm_plate'], col: 'azure' },
   ];
 
   template.forEach((t, idx) => {
@@ -1038,6 +1279,7 @@ export function generateDemoDataset21Days() {
       sleepHours: t.s,
       sleepQuality: t.sq,
       wellbeing: t.w,
+      digestion: t.dig || 'comfortable',
       symptoms: t.sym || [],
       rituals: t.r,
       workouts: t.r.includes('movement')

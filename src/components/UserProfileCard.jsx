@@ -20,6 +20,7 @@ export function UserProfileCard({
   const [height, setHeight] = useState(profile.height || '');
   const [weight, setWeight] = useState(profile.weight || '');
   const [excludeSick, setExcludeSick] = useState(profile.excludeSickFromBaseline ?? true);
+  const [trackDigestion, setTrackDigestion] = useState(profile.trackDigestion ?? true);
   const [trackCycle, setTrackCycle] = useState(Boolean(profile.trackCycle));
   const [cycleLength, setCycleLength] = useState(Number(profile.cycleLength || 28));
   const [hasPin, setHasPin] = useState(() => StorageService.hasPin());
@@ -50,6 +51,7 @@ export function UserProfileCard({
       height: height ? String(height) : '',
       weight: weight ? String(weight) : '',
       excludeSickFromBaseline: excludeSick,
+      trackDigestion,
       trackCycle,
       cycleLength: Math.max(21, Math.min(40, Number(cycleLength || 28))),
     });
@@ -373,6 +375,40 @@ export function UserProfileCard({
             }}
           >
             {excludeSick ? 'Вкл' : 'Выкл'}
+          </span>
+        </button>
+
+        {/* Опциональный учёт пищеварения */}
+        <button
+          type="button"
+          onClick={() => {
+            const nextVal = !trackDigestion;
+            setTrackDigestion(nextVal);
+            onUpdateProfile({ trackDigestion: nextVal });
+            flashNotice(nextVal ? 'Учёт пищеварения включён.' : 'Учёт пищеварения выключен.');
+          }}
+          className="w-full p-3 rounded-xl border flex items-center justify-between text-left"
+          style={{
+            backgroundColor: activeTheme.surfaceContainer,
+            borderColor: activeTheme.borderColor,
+          }}
+        >
+          <div>
+            <div className="text-xs font-medium" style={{ color: activeTheme.textPrimary }}>
+              Отслеживать пищеварение и стул
+            </div>
+            <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+              Связь ЖКТ со стрессом, водой, питанием и циклом
+            </div>
+          </div>
+          <span
+            className="text-[11px] font-medium px-2 py-0.5 rounded shrink-0"
+            style={{
+              backgroundColor: trackDigestion ? activeTheme.accent : activeTheme.surfaceCard,
+              color: trackDigestion ? activeTheme.primaryText : activeTheme.textSecondary,
+            }}
+          >
+            {trackDigestion ? 'Вкл' : 'Выкл'}
           </span>
         </button>
 

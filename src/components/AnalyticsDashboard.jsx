@@ -55,11 +55,21 @@ export function AnalyticsDashboard({
     () =>
       computeFullAnalytics(sourceRecords, fullCatalog, {
         excludeSick,
+        trackDigestion: isDemoMode ? true : (profile?.trackDigestion ?? true),
         trackCycle: Boolean(profile?.trackCycle),
         cycleLength: Number(profile?.cycleLength || 28),
         shoppingPauses: isDemoMode ? [] : shoppingPauses,
       }),
-    [sourceRecords, fullCatalog, excludeSick, profile?.trackCycle, profile?.cycleLength, isDemoMode, shoppingPauses]
+    [
+      sourceRecords,
+      fullCatalog,
+      excludeSick,
+      profile?.trackDigestion,
+      profile?.trackCycle,
+      profile?.cycleLength,
+      isDemoMode,
+      shoppingPauses,
+    ]
   );
 
   // Построение календарной сетки для выбранного месяца (Пн..Вс)
@@ -1009,6 +1019,117 @@ export function AnalyticsDashboard({
           </div>
         </div>
       )}
+
+      {/* БЛОК 4.8: Ритм пищеварения */}
+      {(isDemoMode || (profile?.trackDigestion ?? true)) &&
+        analytics.digestionStats &&
+        analytics.digestionStats.loggedDays >= 2 &&
+        (() => {
+          const d = analytics.digestionStats;
+          const buckets = [
+            { id: 'comfortable', label: 'Комфортно', count: d.comfortableCount, color: activeTheme.accent },
+            { id: 'none', label: 'Не было', count: d.noneCount, color: activeTheme.secondary },
+            { id: 'heavy', label: 'Плотно', count: d.heavyCount, color: activeTheme.primary },
+            { id: 'loose', label: 'Слабо', count: d.looseCount, color: activeTheme.danger },
+          ];
+          return (
+            <div
+              className="p-4 rounded-2xl border space-y-2.5"
+              style={{
+                backgroundColor: activeTheme.surfaceCard,
+                borderColor: activeTheme.borderColor,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+                  Ритм пищеварения
+                </span>
+                <span className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                  {d.loggedDays} дн.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                {buckets.map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-2 rounded-xl border"
+                    style={{
+                      backgroundColor: activeTheme.surfaceContainer,
+                      borderColor: activeTheme.borderColor,
+                    }}
+                  >
+                    <div className="text-base font-semibold tabular-nums" style={{ color: b.color }}>
+                      {b.count}
+                    </div>
+                    <div className="text-[10px] truncate" style={{ color: activeTheme.textSecondary }}>
+                      {b.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {d.comfortableAvgBody !== null && d.issueAvgBody !== null && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="p-2.5 rounded-xl border"
+                    style={{
+                      backgroundColor: activeTheme.surfaceContainer,
+                      borderColor: activeTheme.borderColor,
+                    }}
+                  >
+                    <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                      Комфортный стул
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums mt-0.5" style={{ color: activeTheme.accent }}>
+                      Комфорт {d.comfortableAvgBody}
+                    </div>
+                    {d.comfortableAvgIndex !== null && (
+                      <div className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                        Состояние {d.comfortableAvgIndex}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="p-2.5 rounded-xl border"
+                    style={{
+                      backgroundColor: activeTheme.surfaceContainer,
+                      borderColor: activeTheme.borderColor,
+                    }}
+                  >
+                    <div className="text-[11px]" style={{ color: activeTheme.textSecondary }}>
+                      Пауза / дискомфорт
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums mt-0.5" style={{ color: activeTheme.textPrimary }}>
+                      Комфорт {d.issueAvgBody}
+                    </div>
+                    {d.issueAvgIndex !== null && (
+                      <div className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                        Состояние {d.issueAvgIndex}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(d.topHelper || d.topTrigger || d.cycleNote) && (
+                <div className="space-y-1 text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                  {d.topHelper && (
+                    <p>
+                      Чаще комфортно на следующий день после «<strong style={{ color: activeTheme.textPrimary }}>{d.topHelper.title}</strong>» ({d.topHelper.comfCount} из {d.topHelper.totalWith}).
+                    </p>
+                  )}
+                  {d.topTrigger && (
+                    <p>
+                      Тяжесть или сбой чаще на следующий день после «<strong style={{ color: activeTheme.textPrimary }}>{d.topTrigger.title}</strong>» ({d.topTrigger.issueCount} из {d.topTrigger.totalWith}).
+                    </p>
+                  )}
+                  {d.cycleNote && <p>{d.cycleNote}</p>}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       {/* БЛОК 5: Что наполняет, а что забирает силы */}
       <div

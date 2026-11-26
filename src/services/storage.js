@@ -1,3 +1,5 @@
+import { DIGESTION_OPTIONS } from '../data/brandingTokens.js';
+
 /**
  * Parallelo v2 Storage Service
  * - Хранение записей по локальной календарной дате (YYYY-MM-DD) без обрезки истории.
@@ -74,6 +76,7 @@ export function createEmptyDayRecord(dateKey = getLocalDateKey()) {
     sleepQuality: 3,
     restingHr: null,
     wellbeing: 'in_flow', // 'in_flow' | 'tired' | 'sick'
+    digestion: null,
     symptoms: [],
     rituals: [],
     workouts: [],
@@ -94,6 +97,7 @@ export const DEFAULT_PROFILE = {
   height: '',
   weight: '',
   excludeSickFromBaseline: true,
+  trackDigestion: true,
   trackCycle: false,
   cycleLength: 28,
   themeId: 'obsidian',
@@ -348,6 +352,7 @@ export const StorageService = {
 
   exportCsv(catalog = []) {
     const titleMap = Object.fromEntries(catalog.map((c) => [c.id, c.title]));
+    const digestionMap = Object.fromEntries(DIGESTION_OPTIONS.map((o) => [o.id, o.label]));
     const escapeCsv = (v) => {
       const s = String(v ?? '').replace(/"/g, '""');
       return `"${s}"`;
@@ -361,6 +366,7 @@ export const StorageService = {
       'Сон_ч',
       'Качество_сна',
       'Самочувствие',
+      'Пищеварение',
       'Пульс',
       'Факторы',
       'Заметка',
@@ -394,6 +400,7 @@ export const StorageService = {
         r.sleepHours ?? '',
         r.sleepQuality ?? '',
         r.wellbeing ?? '',
+        r.digestion ? (digestionMap[r.digestion] ?? r.digestion) : '',
         r.restingHr ?? '',
         factorsText,
         r.note ?? '',

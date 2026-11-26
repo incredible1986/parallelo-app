@@ -88,3 +88,10 @@ export const SYMPTOMS_LIST = [
   { id: 'eyes', label: 'Усталость глаз' },
   { id: 'cough', label: 'Кашель' },
 ];
+
+export const DIGESTION_OPTIONS = [
+  { id: 'comfortable', label: 'Комфортно', short: 'Комфортно' },
+  { id: 'none', label: 'Не было', short: 'Не было' },
+  { id: 'heavy', label: 'Плотно / тяжело', short: 'Плотно' },
+  { id: 'loose', label: 'Слабо / расстройство', short: 'Расстройство' },
+];
