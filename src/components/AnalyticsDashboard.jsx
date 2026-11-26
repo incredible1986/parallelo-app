@@ -1216,6 +1216,60 @@ export function AnalyticsDashboard({
           );
         })()}
 
+      {/* БЛОК 4.95: Пульс покоя */}
+      {analytics.pulseStats && analytics.pulseStats.count >= 2 && (() => {
+        const ps = analytics.pulseStats;
+        const pulseCards = [
+          { label: 'Средний', value: `${ps.avgHr}`, sub: 'уд/мин', color: activeTheme.textPrimary },
+          { label: 'Диапазон', value: `${ps.minHr}–${ps.maxHr}`, sub: 'мин–макс', color: activeTheme.secondary },
+          { label: 'Последний', value: `${ps.latestHr}`, sub: 'уд/мин', color: activeTheme.accent },
+        ];
+        return (
+          <div
+            className="p-4 rounded-2xl border space-y-2.5"
+            style={{
+              backgroundColor: activeTheme.surfaceCard,
+              borderColor: activeTheme.borderColor,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: activeTheme.textSecondary }}>
+                Пульс покоя
+              </span>
+              <span className="text-[10px] tabular-nums" style={{ color: activeTheme.textMuted }}>
+                замеров: {ps.count}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {pulseCards.map((c) => (
+                <div
+                  key={c.label}
+                  className="p-2 rounded-xl border"
+                  style={{
+                    backgroundColor: activeTheme.surfaceContainer,
+                    borderColor: activeTheme.borderColor,
+                  }}
+                >
+                  <div className="text-sm font-semibold tabular-nums" style={{ color: c.color }}>
+                    {c.value}
+                  </div>
+                  <div className="text-[10px]" style={{ color: activeTheme.textSecondary }}>
+                    {c.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {ps.strainNote && (
+              <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textSecondary }}>
+                {ps.strainNote}
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {/* БЛОК 5: Что наполняет, а что забирает силы */}
       <div
         className="p-4 rounded-2xl border space-y-3"

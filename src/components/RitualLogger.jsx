@@ -5,6 +5,7 @@ import { formatFullRuDate } from '../services/storage';
 import { RITUAL_ICONS, IconCheck, IconClock, IconPulse } from './RitualIcons';
 import { ShoppingPauseModal } from './ShoppingPauseModal';
 import { WorkoutModal } from './WorkoutModal';
+import { CameraPulseModal } from './CameraPulseModal';
 
 function formatRemaining24h(createdAtIso) {
   const createdMs = new Date(createdAtIso).getTime();
@@ -30,6 +31,7 @@ export function RitualLogger({
 }) {
   const [isShoppingOpen, setIsShoppingOpen] = useState(false);
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
+  const [isPulseModalOpen, setIsPulseModalOpen] = useState(false);
   const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [customName, setCustomName] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -622,7 +624,7 @@ export function RitualLogger({
 
       {/* Пульс покоя */}
       <div
-        className="p-4 rounded-2xl border space-y-2.5"
+        className="p-4 rounded-2xl border space-y-3"
         style={{
           backgroundColor: activeTheme.surfaceCard,
           borderColor: activeTheme.borderColor,
@@ -635,27 +637,32 @@ export function RitualLogger({
               Пульс покоя
             </span>
           </div>
-          <span
-            className="text-[11px] px-2 py-0.5 rounded border"
-            style={{
-              borderColor: activeTheme.borderColor,
-              color: activeTheme.textMuted,
-            }}
-          >
-            Вручную
-          </span>
+          {dayRecord.restingHr ? (
+            <span
+              className="text-[11px] font-medium tabular-nums px-2 py-0.5 rounded border"
+              style={{
+                borderColor: activeTheme.accent,
+                color: activeTheme.accent,
+                backgroundColor: activeTheme.surfaceContainer,
+              }}
+            >
+              {dayRecord.restingHr} уд/мин
+            </span>
+          ) : (
+            <span className="text-[11px]" style={{ color: activeTheme.textMuted }}>
+              по желанию
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="restingHrInput" className="text-xs" style={{ color: activeTheme.textSecondary }}>
-            Ударов в минуту (с часов)
-          </label>
+        <div className="grid grid-cols-2 gap-2">
           <input
             id="restingHrInput"
             type="number"
             min="35"
-            max="130"
-            placeholder="—"
+            max="180"
+            placeholder="Ввести уд/мин"
+            aria-label="Пульс покоя вручную (уд/мин)"
             value={dayRecord.restingHr ?? ''}
             onChange={(e) =>
               onUpdateDay(selectedDate, {
@@ -663,16 +670,29 @@ export function RitualLogger({
                 isSaved: true,
               })
             }
-            className="w-24 text-right tabular-nums text-xs px-2.5 py-1.5 rounded-lg border focus:outline-none"
+            className="w-full text-center tabular-nums text-xs px-3 py-2 rounded-xl border focus:outline-none"
             style={{
               backgroundColor: activeTheme.surfaceContainer,
               borderColor: activeTheme.borderColor,
               color: activeTheme.textPrimary,
             }}
           />
+          <button
+            type="button"
+            onClick={() => setIsPulseModalOpen(true)}
+            className="w-full py-2 px-3 rounded-xl border text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: activeTheme.surfaceContainer,
+              borderColor: activeTheme.primary,
+              color: activeTheme.primary,
+            }}
+          >
+            Измерить камерой
+          </button>
         </div>
+
         <p className="text-[11px] leading-relaxed" style={{ color: activeTheme.textMuted }}>
-          Пока приложение работает в браузере, данные с часов вводятся вручную. Прямое чтение из Google Health Connect появится в версии для Android.
+          Впишите вручную (с часов или датчика телефона) либо измерьте за 15 секунд через камеру.
         </p>
       </div>
 
@@ -688,6 +708,16 @@ export function RitualLogger({
         isOpen={isWorkoutOpen}
         onClose={() => setIsWorkoutOpen(false)}
         onComplete={handleWorkoutComplete}
+      />
+
+      <CameraPulseModal
+        activeTheme={activeTheme}
+        isOpen={isPulseModalOpen}
+        onClose={() => setIsPulseModalOpen(false)}
+        onSaveBpm={(bpm) => {
+          onUpdateDay(selectedDate, { restingHr: bpm, isSaved: true });
+          showNotice(`Пульс покоя сохранён: ${bpm} уд/мин.`);
+        }}
       />
     </div>
   );
